@@ -91,6 +91,12 @@ services:
       OLLAMA_BASE_URL: http://host.docker.internal:11434
       CHAT_MODEL: gemma3:4b
       EMBEDDING_MODEL: qwen3-embedding:0.6b
+      EMBEDDING_TOKENIZER: ${EMBEDDING_TOKENIZER:-Qwen/Qwen3-Embedding-0.6B}
+      EMBEDDING_MAX_TOKENS: ${EMBEDDING_MAX_TOKENS:-32768}
+      CHUNK_SIZE_TOKENS: ${CHUNK_SIZE_TOKENS:-400}
+      CHUNK_OVERLAP_TOKENS: ${CHUNK_OVERLAP_TOKENS:-50}
+      OCR_LANGUAGES: ${OCR_LANGUAGES:-eng+vie}
+      OCR_DPI: ${OCR_DPI:-300}
     extra_hosts:
       - host.docker.internal:host-gateway
     depends_on:

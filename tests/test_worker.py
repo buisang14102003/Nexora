@@ -1,12 +1,15 @@
+from io import BytesIO
 from uuid import uuid4
 
 import pytest
+from reportlab.pdfgen import canvas
 from sqlalchemy import create_engine, select
 from sqlalchemy.orm import Session, sessionmaker
 
+from app.core.config import Settings
 from app.db.base import Base
 from app.db.models import Document, DocumentStatus, IngestionJob, IngestionJobStatus
-from app.services import jobs
+from app.services import jobs, parsers
 from app.services.chunking import Chunk
 from app.services.parsers import ExtractedPage
 from worker.main import run_once
@@ -20,19 +23,45 @@ class FakeVectorStore:
         self.indexed.append((workspace_id, document_id, chunks))
 
 
+class CharacterEncoding:
+    def __init__(self, text: str) -> None:
+        self.ids = [ord(character) for character in text]
+        self.offsets = [(index, index + 1) for index in range(len(text))]
+
+
+class CharacterTokenizer:
+    def encode(self, text: str, add_special_tokens: bool = False) -> CharacterEncoding:
+        assert add_special_tokens is False
+        return CharacterEncoding(text)
+
+
 def _session_factory():
     engine = create_engine("sqlite:///:memory:")
     Base.metadata.create_all(engine)
     return engine, sessionmaker(bind=engine, expire_on_commit=False)
 
 
-def _queued_document(session: Session) -> Document:
+def _text_pdf_bytes(text: str) -> bytes:
+    output = BytesIO()
+    pdf = canvas.Canvas(output)
+    pdf.drawString(72, 720, text)
+    pdf.showPage()
+    pdf.save()
+    return output.getvalue()
+
+
+def _queued_document(
+    session: Session,
+    *,
+    filename: str = "guide.pdf",
+    source_type: str = "pdf",
+) -> Document:
     document = Document(
         workspace_id=uuid4(),
-        original_filename="guide.pdf",
-        mime_type="application/pdf",
-        object_key="workspace/guide.pdf",
-        source_type="pdf",
+        original_filename=filename,
+        mime_type="application/octet-stream",
+        object_key=f"workspace/{filename}",
+        source_type=source_type,
         status=DocumentStatus.QUEUED,
     )
     session.add(document)
@@ -47,7 +76,7 @@ def _queued_document(session: Session) -> Document:
     return document
 
 
-def test_worker_claims_indexes_and_marks_document_ready(
+def test_worker_uses_settings_and_real_parser_metadata_boundary(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     engine, factory = _session_factory()
@@ -57,20 +86,31 @@ def test_worker_claims_indexes_and_marks_document_ready(
         workspace_id = document.workspace_id
 
     monkeypatch.setattr(
-        jobs,
-        "extract_document",
-        lambda _: [
-            ExtractedPage(
-                page_number=1,
-                text="ready to index",
-                source_name="guide.pdf",
-                source_type="pdf",
-            )
-        ],
+        parsers,
+        "_load_document_bytes",
+        lambda _: _text_pdf_bytes("abcdefghij"),
+    )
+    tokenizer_names: list[str] = []
+
+    def fake_get_tokenizer(name: str) -> CharacterTokenizer:
+        tokenizer_names.append(name)
+        return CharacterTokenizer()
+
+    monkeypatch.setattr(jobs, "get_tokenizer", fake_get_tokenizer, raising=False)
+    settings = Settings(
+        database_url="sqlite://",
+        jwt_secret="test-secret",
+        embedding_tokenizer="custom/tokenizer",
+        chunk_size_tokens=5,
+        chunk_overlap_tokens=2,
     )
     store = FakeVectorStore()
 
-    assert run_once(session_factory=factory, vector_store=store) is True
+    assert run_once(
+        session_factory=factory,
+        vector_store=store,
+        settings=settings,
+    ) is True
 
     with factory() as session:
         persisted_document = session.get(Document, document_id)
@@ -82,7 +122,53 @@ def test_worker_claims_indexes_and_marks_document_ready(
         assert persisted_job.attempts == 1
         assert persisted_job.error_message is None
     assert store.indexed[0][0:2] == (workspace_id, document_id)
-    assert store.indexed[0][2][0].page_number == 1
+    chunks = store.indexed[0][2]
+    assert tokenizer_names == ["custom/tokenizer"]
+    assert [chunk.text for chunk in chunks] == ["abcde", "defgh", "ghij"]
+    assert all(chunk.page_number == 1 for chunk in chunks)
+    assert all(chunk.source_name == "guide.pdf" for chunk in chunks)
+    assert all(chunk.source_type == "pdf" for chunk in chunks)
+    engine.dispose()
+
+
+def test_worker_marks_csv_ready_without_loading_a_tokenizer(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    engine, factory = _session_factory()
+    with factory.begin() as session:
+        document_id = _queued_document(
+            session,
+            filename="sales.csv",
+            source_type="csv",
+        ).id
+
+    monkeypatch.setattr(
+        parsers,
+        "_load_document_bytes",
+        lambda _: b"country,amount\nVN,1250\n",
+    )
+
+    def unexpected_tokenizer_load(_: str) -> CharacterTokenizer:
+        raise AssertionError("CSV processing must not load an embedding tokenizer")
+
+    monkeypatch.setattr(jobs, "get_tokenizer", unexpected_tokenizer_load)
+    store = FakeVectorStore()
+
+    assert run_once(
+        session_factory=factory,
+        vector_store=store,
+        settings=Settings(database_url="sqlite://", jwt_secret="test-secret"),
+    ) is True
+
+    with factory() as session:
+        document = session.get(Document, document_id)
+        job = session.scalar(select(IngestionJob))
+        assert document is not None
+        assert document.status is DocumentStatus.READY
+        assert document.csv_row_count == 1
+        assert job is not None
+        assert job.status is IngestionJobStatus.READY
+    assert store.indexed == []
     engine.dispose()
 
 
@@ -93,12 +179,21 @@ def test_worker_marks_safe_failure_without_leaking_exception_text(
     with factory.begin() as session:
         document_id = _queued_document(session).id
 
-    def fail_extraction(_: Document) -> list[ExtractedPage]:
+    def fail_extraction(
+        _: Document,
+        *,
+        settings: Settings,
+    ) -> list[ExtractedPage]:
         raise RuntimeError("secret document content")
 
     monkeypatch.setattr(jobs, "extract_document", fail_extraction)
 
-    assert run_once(session_factory=factory, vector_store=FakeVectorStore()) is True
+    assert run_once(
+        session_factory=factory,
+        vector_store=FakeVectorStore(),
+        settings=Settings(database_url="sqlite://", jwt_secret="test-secret"),
+        tokenizer=CharacterTokenizer(),
+    ) is True
 
     with factory() as session:
         document = session.get(Document, document_id)

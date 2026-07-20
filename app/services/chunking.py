@@ -1,8 +1,11 @@
-import re
 from dataclasses import dataclass
-import os
+from functools import lru_cache
+from typing import Protocol
 from uuid import UUID, uuid5
 
+from tokenizers import Encoding, Tokenizer
+
+from app.core.config import get_settings
 from app.services.parsers import ExtractedPage
 
 
@@ -18,20 +21,38 @@ class Chunk:
     end_offset: int
 
 
+class TextTokenizer(Protocol):
+    def encode(
+        self,
+        sequence: str,
+        add_special_tokens: bool = False,
+    ) -> Encoding: ...
+
+
+@lru_cache
+def get_tokenizer(name: str) -> TextTokenizer:
+    return Tokenizer.from_pretrained(name)
+
+
 def chunk_pages(
     pages: list[ExtractedPage],
     document_id: UUID,
     *,
+    tokenizer: TextTokenizer | None = None,
     chunk_size_tokens: int | None = None,
     chunk_overlap_tokens: int | None = None,
 ) -> list[Chunk]:
-    size = (
-        int(os.getenv("CHUNK_SIZE_TOKENS", "400"))
-        if chunk_size_tokens is None
-        else chunk_size_tokens
+    settings = (
+        get_settings()
+        if tokenizer is None
+        or chunk_size_tokens is None
+        or chunk_overlap_tokens is None
+        else None
     )
+    active_tokenizer = tokenizer or get_tokenizer(settings.embedding_tokenizer)
+    size = settings.chunk_size_tokens if chunk_size_tokens is None else chunk_size_tokens
     overlap = (
-        int(os.getenv("CHUNK_OVERLAP_TOKENS", "50"))
+        settings.chunk_overlap_tokens
         if chunk_overlap_tokens is None
         else chunk_overlap_tokens
     )
@@ -42,12 +63,25 @@ def chunk_pages(
 
     chunks: list[Chunk] = []
     for page in pages:
-        tokens = list(re.finditer(r"\S+", page.text))
+        token_offsets = active_tokenizer.encode(
+            page.text,
+            add_special_tokens=False,
+        ).offsets
         start_token = 0
-        while start_token < len(tokens):
-            end_token = min(start_token + size, len(tokens))
-            start_offset = tokens[start_token].start()
-            end_offset = tokens[end_token - 1].end()
+        while start_token < len(token_offsets):
+            end_token = min(start_token + size, len(token_offsets))
+            start_offset = token_offsets[start_token][0]
+            end_offset = token_offsets[end_token - 1][1]
+            while end_token > start_token and len(
+                active_tokenizer.encode(
+                    page.text[start_offset:end_offset],
+                    add_special_tokens=False,
+                ).ids
+            ) > size:
+                end_token -= 1
+                end_offset = token_offsets[end_token - 1][1]
+            if end_token == start_token:
+                raise ValueError("Tokenizer offsets cannot produce a bounded chunk")
             chunk_id = uuid5(
                 document_id,
                 f"{page.page_number}:{page.source_name}:{start_offset}:{end_offset}",
@@ -64,7 +98,7 @@ def chunk_pages(
                     end_offset=end_offset,
                 )
             )
-            if end_token == len(tokens):
+            if end_token == len(token_offsets):
                 break
             start_token = end_token - overlap
     return chunks

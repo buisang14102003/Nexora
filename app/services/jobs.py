@@ -3,8 +3,9 @@ from datetime import datetime, timezone
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.core.config import Settings, get_settings
 from app.db.models import Document, DocumentStatus, IngestionJob, IngestionJobStatus
-from app.services.chunking import chunk_pages
+from app.services.chunking import TextTokenizer, chunk_pages, get_tokenizer
 from app.services.parsers import DocumentExtractionError, extract_document
 from app.services.vector_store import QdrantVectorStore, VectorStoreError
 
@@ -35,13 +36,27 @@ def process_claimed_job(
     session: Session,
     job: IngestionJob,
     vector_store: QdrantVectorStore | None = None,
+    *,
+    settings: Settings | None = None,
+    tokenizer: TextTokenizer | None = None,
 ) -> None:
     document = session.get(Document, job.document_id)
     if document is None:
         raise RuntimeError("Ingestion job document does not exist")
 
-    pages = extract_document(document)
-    chunks = chunk_pages(pages, document_id=document.id)
+    runtime_settings = settings or get_settings()
+    pages = extract_document(document, settings=runtime_settings)
+    chunks = (
+        chunk_pages(
+            pages,
+            document_id=document.id,
+            tokenizer=tokenizer or get_tokenizer(runtime_settings.embedding_tokenizer),
+            chunk_size_tokens=runtime_settings.chunk_size_tokens,
+            chunk_overlap_tokens=runtime_settings.chunk_overlap_tokens,
+        )
+        if pages
+        else []
+    )
     if document.source_type != "csv" and not chunks:
         raise DocumentExtractionError("Document contains no extractable text")
     if chunks:

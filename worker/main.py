@@ -3,8 +3,9 @@ from threading import Event
 
 from sqlalchemy.orm import Session
 
-from app.core.config import get_settings
+from app.core.config import Settings, get_settings
 from app.db.models import IngestionJob
+from app.services.chunking import TextTokenizer
 from app.services.jobs import claim_next_job, fail_job, process_claimed_job
 from app.services.vector_store import QdrantVectorStore
 
@@ -16,6 +17,8 @@ def run_once(
     *,
     session_factory: SessionFactory | None = None,
     vector_store: QdrantVectorStore | None = None,
+    settings: Settings | None = None,
+    tokenizer: TextTokenizer | None = None,
 ) -> bool:
     if session_factory is None:
         from app.db.session import SessionLocal
@@ -30,13 +33,20 @@ def run_once(
                 return False
             job_id = claimed.id
 
+    runtime_settings = settings or get_settings()
     try:
         with factory() as session:
             with session.begin():
                 job = session.get(IngestionJob, job_id)
                 if job is None:
                     raise RuntimeError("Claimed ingestion job no longer exists")
-                process_claimed_job(session, job, vector_store)
+                process_claimed_job(
+                    session,
+                    job,
+                    vector_store,
+                    settings=runtime_settings,
+                    tokenizer=tokenizer,
+                )
     except Exception as error:
         with factory() as session:
             with session.begin():

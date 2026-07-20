@@ -1,6 +1,5 @@
 from dataclasses import dataclass
 from io import BytesIO
-import os
 
 import pandas as pd
 import pypdfium2 as pdfium
@@ -9,7 +8,7 @@ from docx import Document as DocxDocument
 from PIL import Image
 from pypdf import PdfReader
 
-from app.core.config import get_settings
+from app.core.config import Settings, get_settings
 from app.db.models import Document
 from app.services.storage import get_minio_client
 
@@ -26,15 +25,32 @@ class ExtractedPage:
     source_type: str = ""
 
 
-def extract_document(document: Document) -> list[ExtractedPage]:
+def extract_document(
+    document: Document,
+    *,
+    settings: Settings | None = None,
+) -> list[ExtractedPage]:
+    runtime_settings = settings or get_settings()
     try:
         contents = _load_document_bytes(document)
         if document.source_type == "docx":
             extracted = _extract_docx(contents)
         elif document.source_type == "pdf":
-            extracted = _extract_pdf(contents)
+            extracted = _extract_pdf(
+                contents,
+                languages=runtime_settings.ocr_languages,
+                dpi=runtime_settings.ocr_dpi,
+            )
         elif document.source_type == "image":
-            extracted = [(1, _ocr_image(Image.open(BytesIO(contents))))]
+            extracted = [
+                (
+                    1,
+                    _ocr_image(
+                        Image.open(BytesIO(contents)),
+                        languages=runtime_settings.ocr_languages,
+                    ),
+                )
+            ]
         elif document.source_type == "csv":
             _record_csv_metadata(document, contents)
             return []
@@ -81,7 +97,12 @@ def _extract_docx(contents: bytes) -> list[tuple[int, str]]:
     return [(1, "\n".join(blocks))]
 
 
-def _extract_pdf(contents: bytes) -> list[tuple[int, str]]:
+def _extract_pdf(
+    contents: bytes,
+    *,
+    languages: str,
+    dpi: int,
+) -> list[tuple[int, str]]:
     reader = PdfReader(BytesIO(contents))
     pages: list[tuple[int, str]] = []
     rendered_document: pdfium.PdfDocument | None = None
@@ -91,7 +112,12 @@ def _extract_pdf(contents: bytes) -> list[tuple[int, str]]:
             if not text.strip():
                 if rendered_document is None:
                     rendered_document = pdfium.PdfDocument(contents)
-                text = _ocr_pdf_page(rendered_document, page_index)
+                text = _ocr_pdf_page(
+                    rendered_document,
+                    page_index,
+                    languages=languages,
+                    dpi=dpi,
+                )
             pages.append((page_index + 1, text))
     finally:
         if rendered_document is not None:
@@ -99,20 +125,26 @@ def _extract_pdf(contents: bytes) -> list[tuple[int, str]]:
     return pages
 
 
-def _ocr_pdf_page(document: pdfium.PdfDocument, page_index: int) -> str:
+def _ocr_pdf_page(
+    document: pdfium.PdfDocument,
+    page_index: int,
+    *,
+    languages: str,
+    dpi: int,
+) -> str:
     page = document[page_index]
-    bitmap = page.render(scale=int(os.getenv("OCR_DPI", "300")) / 72)
+    bitmap = page.render(scale=dpi / 72)
     try:
-        return _ocr_image(bitmap.to_pil())
+        return _ocr_image(bitmap.to_pil(), languages=languages)
     finally:
         bitmap.close()
         page.close()
 
 
-def _ocr_image(image: Image.Image) -> str:
+def _ocr_image(image: Image.Image, *, languages: str) -> str:
     return pytesseract.image_to_string(
         image,
-        lang=os.getenv("OCR_LANGUAGES", "eng+vie"),
+        lang=languages,
     )
 
 

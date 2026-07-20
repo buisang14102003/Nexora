@@ -8,9 +8,13 @@ from PIL import Image
 from reportlab.lib.utils import ImageReader
 from reportlab.pdfgen import canvas
 
+from app.core.config import Settings
 from app.db.models import Document, DocumentStatus
 from app.services import parsers
 from app.services.parsers import extract_document
+
+
+SETTINGS = Settings(database_url="sqlite://", jwt_secret="test-secret")
 
 
 def _document(filename: str, source_type: str) -> Document:
@@ -60,7 +64,7 @@ def test_docx_extracts_paragraphs_and_tables(monkeypatch: pytest.MonkeyPatch) ->
     document = _document("guide.docx", "docx")
     monkeypatch.setattr(parsers, "_load_document_bytes", lambda _: _docx_bytes())
 
-    pages = extract_document(document)
+    pages = extract_document(document, settings=SETTINGS)
 
     assert len(pages) == 1
     assert pages[0].page_number == 1
@@ -79,7 +83,7 @@ def test_text_pdf_retains_page_number(monkeypatch: pytest.MonkeyPatch) -> None:
         lambda _: _text_pdf_bytes("Refunds are available within 30 days."),
     )
 
-    pages = extract_document(document)
+    pages = extract_document(document, settings=SETTINGS)
 
     assert [(page.page_number, page.source_name) for page in pages] == [
         (1, "policy.pdf")
@@ -87,23 +91,28 @@ def test_text_pdf_retains_page_number(monkeypatch: pytest.MonkeyPatch) -> None:
     assert "Refunds are available within 30 days." in pages[0].text
 
 
-def test_scanned_pdf_uses_local_ocr_and_retains_page(
+def test_scanned_pdf_uses_configured_ocr_and_retains_page(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     document = _document("scan.pdf", "pdf")
-    seen_images: list[Image.Image] = []
+    seen_calls: list[tuple[int, str]] = []
     monkeypatch.setattr(parsers, "_load_document_bytes", lambda _: _scanned_pdf_bytes())
 
-    def fake_ocr(image: Image.Image) -> str:
-        seen_images.append(image)
+    def fake_ocr(image: Image.Image, *, lang: str) -> str:
+        seen_calls.append((image.width, lang))
         return "Scanned safety policy"
 
-    monkeypatch.setattr(parsers, "_ocr_image", fake_ocr)
+    monkeypatch.setattr(parsers.pytesseract, "image_to_string", fake_ocr)
+    settings = Settings(
+        database_url="sqlite://",
+        jwt_secret="test-secret",
+        ocr_languages="deu",
+        ocr_dpi=144,
+    )
 
-    pages = extract_document(document)
+    pages = extract_document(document, settings=settings)
 
-    assert len(seen_images) == 1
-    assert seen_images[0].width > 600
+    assert seen_calls == [(1200, "deu")]
     assert pages[0].page_number == 1
     assert pages[0].text == "Scanned safety policy"
 
@@ -113,9 +122,13 @@ def test_image_uses_local_ocr(monkeypatch: pytest.MonkeyPatch) -> None:
     output = BytesIO()
     Image.new("RGB", (100, 40), "white").save(output, format="PNG")
     monkeypatch.setattr(parsers, "_load_document_bytes", lambda _: output.getvalue())
-    monkeypatch.setattr(parsers, "_ocr_image", lambda _: "Emergency notice")
+    monkeypatch.setattr(
+        parsers,
+        "_ocr_image",
+        lambda _, *, languages: "Emergency notice",
+    )
 
-    pages = extract_document(document)
+    pages = extract_document(document, settings=SETTINGS)
 
     assert pages[0].page_number == 1
     assert pages[0].text == "Emergency notice"
@@ -129,7 +142,7 @@ def test_csv_records_schema_and_row_count_without_prose_chunks(
     contents = b"country,amount,approved\nVN,1250,true\nUS,500,false\n"
     monkeypatch.setattr(parsers, "_load_document_bytes", lambda _: contents)
 
-    pages = extract_document(document)
+    pages = extract_document(document, settings=SETTINGS)
 
     assert pages == []
     assert document.csv_row_count == 2

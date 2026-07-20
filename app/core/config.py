@@ -1,6 +1,7 @@
 from functools import lru_cache
+from typing import Self
 
-from pydantic import field_validator
+from pydantic import field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -20,6 +21,8 @@ class Settings(BaseSettings):
     jwt_algorithm: str = "HS256"
     chat_model: str = "gemma3:4b"
     embedding_model: str = "qwen3-embedding:0.6b"
+    embedding_tokenizer: str = "Qwen/Qwen3-Embedding-0.6B"
+    embedding_max_tokens: int = 32_768
     chunk_size_tokens: int = 400
     chunk_overlap_tokens: int = 50
     ocr_languages: str = "eng+vie"
@@ -32,6 +35,30 @@ class Settings(BaseSettings):
         if not value.strip():
             raise ValueError("DATABASE_URL must not be blank")
         return value
+
+    @model_validator(mode="after")
+    def ingestion_settings_are_valid(self) -> Self:
+        if self.embedding_max_tokens <= 0:
+            raise ValueError("embedding_max_tokens must be positive")
+        if self.chunk_size_tokens <= 0:
+            raise ValueError("chunk_size_tokens must be positive")
+        if self.chunk_size_tokens > self.embedding_max_tokens:
+            raise ValueError(
+                "chunk_size_tokens must not exceed embedding_max_tokens"
+            )
+        if self.chunk_overlap_tokens < 0:
+            raise ValueError("chunk_overlap_tokens must be non-negative")
+        if self.chunk_overlap_tokens >= self.chunk_size_tokens:
+            raise ValueError(
+                "chunk_overlap_tokens must be smaller than chunk_size_tokens"
+            )
+        if not self.embedding_tokenizer.strip():
+            raise ValueError("embedding_tokenizer must not be blank")
+        if not self.ocr_languages.strip():
+            raise ValueError("ocr_languages must not be blank")
+        if self.ocr_dpi <= 0:
+            raise ValueError("ocr_dpi must be positive")
+        return self
 
 
 @lru_cache
