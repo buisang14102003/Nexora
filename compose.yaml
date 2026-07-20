@@ -14,8 +14,6 @@ services:
       POSTGRES_USER: ${POSTGRES_USER:-rag}
       POSTGRES_DB: ${POSTGRES_DB:-rag}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-}
-    ports:
-      - "127.0.0.1:5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     depends_on:
@@ -28,9 +26,6 @@ services:
     environment:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER:-rag}
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-}
-    ports:
-      - "127.0.0.1:9000:9000"
-      - "127.0.0.1:9001:9001"
     volumes:
       - minio_data:/data
     depends_on:
@@ -39,9 +34,6 @@ services:
 
   qdrant:
     image: qdrant/qdrant:v1.13.1
-    ports:
-      - "127.0.0.1:6333:6333"
-      - "127.0.0.1:6334:6334"
     volumes:
       - qdrant_data:/qdrant/storage
     depends_on:
