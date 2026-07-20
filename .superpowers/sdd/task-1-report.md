@@ -133,3 +133,40 @@ exit 0
 ### Remaining concern
 
 - The Chainlit package's current transitive dependency emits the warning noted above; application tests and its local HTTP start check pass.
+
+## Review-fix: validation gates for Qdrant, ClickHouse, and Redis (2026-07-20)
+
+### Changes made
+
+- Added `validate-env` `service_completed_successfully` dependencies to Qdrant, ClickHouse, and Redis, preventing those services from starting after environment validation fails.
+- Added a focused Compose regression test covering all three dependencies.
+
+### RED / GREEN evidence
+
+Before the Compose change, the focused regression failed for each ungated service:
+
+```text
+$ .venv/bin/pytest tests/test_compose.py -v
+tests/test_compose.py::test_stateful_services_wait_for_environment_validation[qdrant] FAILED
+tests/test_compose.py::test_stateful_services_wait_for_environment_validation[clickhouse] FAILED
+tests/test_compose.py::test_stateful_services_wait_for_environment_validation[redis] FAILED
+============================== 3 failed in 0.02s ===============================
+```
+
+After the change:
+
+```text
+$ .venv/bin/pytest tests/test_compose.py -v
+============================== 3 passed in 0.01s ===============================
+
+$ DATABASE_URL='postgresql+psycopg://rag:test@postgres:5432/rag' POSTGRES_PASSWORD=test MINIO_ROOT_PASSWORD=test JWT_SECRET=test LANGFUSE_POSTGRES_PASSWORD=test LANGFUSE_NEXTAUTH_SECRET=test LANGFUSE_SALT=test LANGFUSE_ENCRYPTION_KEY=test docker compose config --quiet
+exit 0
+
+$ .venv/bin/pytest -v
+========================= 9 passed, 1 warning in 2.68s =========================
+
+$ git diff --check
+exit 0
+```
+
+The one warning remains Chainlit's transitive `traceloop` Pydantic deprecation warning described above.

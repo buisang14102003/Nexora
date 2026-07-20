@@ -44,6 +44,9 @@ services:
       - "127.0.0.1:6334:6334"
     volumes:
       - qdrant_data:/qdrant/storage
+    depends_on:
+      validate-env:
+        condition: service_completed_successfully
 
   api:
     image: python:3.11-slim
@@ -128,11 +131,17 @@ services:
     image: clickhouse/clickhouse-server:24.8-alpine
     volumes:
       - langfuse_data:/var/lib/clickhouse
+    depends_on:
+      validate-env:
+        condition: service_completed_successfully
 
   redis:
     image: redis:7-alpine
     volumes:
       - langfuse_redis_data:/data
+    depends_on:
+      validate-env:
+        condition: service_completed_successfully
 
   langfuse-web:
     image: langfuse/langfuse:3
