@@ -82,8 +82,10 @@ def test_request_rolls_back_workspace_when_membership_creation_fails(
 
     with Session(engine) as session:
         workspace_count = session.scalar(select(func.count()).select_from(Workspace))
+        membership_count = session.scalar(select(func.count()).select_from(Membership))
 
     assert workspace_count == 0
+    assert membership_count == 0
 
 
 def test_request_rolls_back_workspace_when_later_work_fails(
@@ -111,5 +113,7 @@ def test_request_rolls_back_workspace_when_later_work_fails(
 
     with Session(engine) as session:
         workspace_count = session.scalar(select(func.count()).select_from(Workspace))
+        membership_count = session.scalar(select(func.count()).select_from(Membership))
 
     assert workspace_count == 0
+    assert membership_count == 0
