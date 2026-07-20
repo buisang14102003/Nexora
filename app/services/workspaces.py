@@ -17,7 +17,6 @@ def create_workspace(session: Session, owner_id: UUID, name: str) -> Workspace:
             role=MembershipRole.ADMIN,
         )
     )
-    session.commit()
-    session.refresh(workspace)
+    session.flush()
 
     return workspace

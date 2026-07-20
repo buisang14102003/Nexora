@@ -7,6 +7,5 @@ from app.db.models import User
 def create_user(session: Session, email: str, password: str) -> User:
     user = User(email=email, password_hash=hash_password(password))
     session.add(user)
-    session.commit()
-    session.refresh(user)
+    session.flush()
     return user
