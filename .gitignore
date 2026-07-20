@@ -1,0 +1,6 @@
+.superpowers/
+.env
+__pycache__/
+*.py[cod]
+.venv/
+data/
