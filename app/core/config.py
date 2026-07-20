@@ -28,6 +28,9 @@ class Settings(BaseSettings):
     ocr_languages: str = "eng+vie"
     ocr_dpi: int = 300
     worker_poll_seconds: float = 2.0
+    langfuse_host: str = "http://langfuse-web:3000"
+    langfuse_public_key: str = ""
+    langfuse_secret_key: str = ""
 
     @field_validator("database_url")
     @classmethod

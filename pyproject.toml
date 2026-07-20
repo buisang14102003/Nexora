@@ -13,6 +13,7 @@ dependencies = [
     "chainlit>=2.6.3,<2.7",
     "fastapi>=0.115,<0.116",
     "langchain-ollama>=0.3,<1",
+    "langfuse>=3,<4",
     "langgraph>=0.2,<1",
     "minio>=7.2,<8",
     "pandas>=2.2,<3",
