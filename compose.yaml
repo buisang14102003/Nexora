@@ -78,9 +78,11 @@ services:
       - .:/app
 
   worker:
-    image: python:3.11-slim
+    build:
+      context: .
+      dockerfile: worker/Dockerfile
     working_dir: /app
-    command: sh -c "pip install --no-cache-dir . && python -m worker.main"
+    command: python -m worker.main
     environment:
       DATABASE_URL: ${DATABASE_URL:-}
       JWT_SECRET: ${JWT_SECRET:-}

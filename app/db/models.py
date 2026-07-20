@@ -2,7 +2,7 @@ from datetime import datetime
 from enum import Enum
 from uuid import UUID, uuid4
 
-from sqlalchemy import DateTime, Enum as SQLAlchemyEnum, ForeignKey, Integer, String, Uuid, func
+from sqlalchemy import JSON, DateTime, Enum as SQLAlchemyEnum, ForeignKey, Integer, String, Uuid, func
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base
@@ -100,6 +100,8 @@ class Document(TimestampedModel, Base):
     object_key: Mapped[str] = mapped_column(String(1024), unique=True, nullable=False)
     source_type: Mapped[str] = mapped_column(String(32), nullable=False)
     status: Mapped[DocumentStatus] = mapped_column(document_status, nullable=False)
+    csv_schema: Mapped[dict[str, str] | None] = mapped_column(JSON, nullable=True)
+    csv_row_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
 
 class IngestionJob(TimestampedModel, Base):

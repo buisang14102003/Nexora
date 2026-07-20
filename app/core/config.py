@@ -14,11 +14,17 @@ class Settings(BaseSettings):
     minio_secure: bool = False
     upload_max_bytes: int = 25 * 1024 * 1024
     qdrant_url: str = "http://qdrant:6333"
+    qdrant_collection: str = "document_chunks"
     ollama_base_url: str = "http://host.docker.internal:11434"
     jwt_secret: str
     jwt_algorithm: str = "HS256"
     chat_model: str = "gemma3:4b"
     embedding_model: str = "qwen3-embedding:0.6b"
+    chunk_size_tokens: int = 400
+    chunk_overlap_tokens: int = 50
+    ocr_languages: str = "eng+vie"
+    ocr_dpi: int = 300
+    worker_poll_seconds: float = 2.0
 
     @field_validator("database_url")
     @classmethod
