@@ -105,6 +105,20 @@ class LocalRagApi:
             files={"file": (filename, content, mime_type)},
         )
 
+    async def csv_analysis(
+        self,
+        token: str,
+        workspace_id: str,
+        document_id: str,
+        operation: dict[str, Any],
+    ) -> dict[str, Any]:
+        return await self._request(
+            "POST",
+            f"/workspaces/{workspace_id}/csv-analysis",
+            token=token,
+            json={"document_id": document_id, "operation": operation},
+        )
+
     async def stream_chat(
         self,
         token: str,

@@ -5,6 +5,7 @@ This module deliberately has no database, object store, vector store, or model i
 
 from __future__ import annotations
 
+import json
 from typing import Any
 
 import chainlit as cl
@@ -76,6 +77,7 @@ async def _show_workspace_actions() -> None:
     actions = [
         cl.Action(name="create_workspace", label="Tạo workspace", payload={}),
         cl.Action(name="show_documents", label="Xem tài liệu", payload={}),
+        cl.Action(name="show_csv_analysis", label="Phân tích CSV", payload={}),
         cl.Action(name="set_summary", label="Chế độ tóm tắt", payload={}),
         cl.Action(name="set_rag", label="Hỏi tài liệu", payload={}),
     ]
@@ -146,6 +148,45 @@ def _citation_lines(citations: list[dict[str, Any]]) -> str:
     return "\n\nNguồn:\n" + "\n".join(lines)
 
 
+def _csv_result_content(result: dict[str, Any]) -> str:
+    evidence = result["evidence"]
+    filters = evidence.get("filters", [])
+    return (
+        "Kết quả CSV:\n```json\n"
+        + json.dumps(result.get("values", []), ensure_ascii=False, indent=2)
+        + "\n```\n\nBằng chứng:\n"
+        + f"- Nguồn: `{evidence['source_name']}`\n"
+        + f"- Cột sử dụng: {', '.join(evidence.get('columns', [])) or '(không có)'}\n"
+        + f"- Bộ lọc: `{json.dumps(filters, ensure_ascii=False)}`\n"
+        + f"- Hàng CSV: {evidence.get('row_range') or 'không có'} ({evidence.get('row_count', 0)} hàng)"
+    )
+
+
+async def _show_csv_analysis_actions() -> None:
+    token, workspace_id = _session("token"), _session("workspace_id")
+    if not token or not workspace_id:
+        await cl.Message(content="Hãy chọn workspace trước.").send()
+        return
+    try:
+        documents = await _api().list_documents(token, workspace_id)
+    except ApiError as exc:
+        await cl.Message(content=f"Không tải được danh sách CSV: {exc}").send()
+        return
+    actions = [
+        cl.Action(
+            name="select_csv_analysis",
+            label=f"Phân tích: {document['original_filename']}",
+            payload={"id": str(document["id"]), "name": document["original_filename"]},
+        )
+        for document in documents
+        if document.get("source_type") == "csv" and str(document.get("status")) == "ready"
+    ]
+    if not actions:
+        await cl.Message(content="Chưa có CSV ở trạng thái sẵn sàng để phân tích.").send()
+        return
+    await cl.Message(content="Chọn một CSV để gửi phép tính JSON đã kiểm soát.", actions=actions).send()
+
+
 @cl.on_chat_start
 async def start() -> None:
     cl.user_session.set("route", "document_rag")
@@ -184,6 +225,37 @@ async def show_documents(_: cl.Action) -> None:
     await _show_documents()
 
 
+@cl.action_callback("show_csv_analysis")
+async def show_csv_analysis(_: cl.Action) -> None:
+    await _show_csv_analysis_actions()
+
+
+@cl.action_callback("select_csv_analysis")
+async def select_csv_analysis(action: cl.Action) -> None:
+    operation_text = await _ask_text(
+        f"Nhập operation JSON cho `{action.payload['name']}`. Ví dụ: "
+        '{"aggregations":[{"column":"amount","function":"sum"}]}'
+    )
+    if not operation_text:
+        return
+    try:
+        operation = json.loads(operation_text)
+    except json.JSONDecodeError:
+        await cl.Message(content="Operation CSV phải là JSON hợp lệ.").send()
+        return
+    if not isinstance(operation, dict):
+        await cl.Message(content="Operation CSV phải là một JSON object.").send()
+        return
+    try:
+        result = await _api().csv_analysis(
+            _session("token"), _session("workspace_id"), action.payload["id"], operation
+        )
+    except ApiError as exc:
+        await cl.Message(content=f"Không thể phân tích CSV: {exc}").send()
+        return
+    await cl.Message(content=_csv_result_content(result)).send()
+
+
 @cl.action_callback("set_summary")
 async def set_summary(_: cl.Action) -> None:
     cl.user_session.set("route", "summary")
@@ -218,6 +290,7 @@ async def chat(message: cl.Message) -> None:
     answer = ""
     citations: list[dict[str, Any]] = []
     response = cl.Message(content="")
+    await response.send()
     try:
         async for event_name, payload in _api().stream_chat(
             token, workspace_id, question, _session("route", "document_rag")
@@ -237,4 +310,4 @@ async def chat(message: cl.Message) -> None:
         return
 
     response.content = (answer or "Không nhận được câu trả lời.") + _citation_lines(citations)
-    await response.send()
+    await response.update()
