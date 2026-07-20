@@ -1,3 +1,4 @@
+import json
 from collections.abc import Callable, Iterator, Sequence
 from dataclasses import dataclass
 from queue import Queue
@@ -8,6 +9,7 @@ from langchain_ollama import ChatOllama
 from langgraph.graph import END, START, StateGraph
 
 from app.core.config import get_settings
+from app.core.observability import trace_graph_run
 from app.rag.nodes import AnswerGenerator, GraphState, answer, retrieve
 from app.schemas.chat import Citation
 from app.services.chunking import Chunk
@@ -108,6 +110,40 @@ def _result_from_state(state: GraphState) -> ChatResult:
     return ChatResult(answer=answer_text, citations=citations)
 
 
+def _invoke_graph(
+    workspace_id: UUID,
+    user_id: UUID,
+    question: str,
+    document_ids: list[UUID] | None,
+    route: str,
+    generator: AnswerGenerator,
+) -> GraphState:
+    settings = get_settings()
+    with trace_graph_run(
+        "rag_graph",
+        {
+            "route": route,
+            "workspace_id": str(workspace_id),
+            "chat_model": settings.chat_model,
+            "embedding_model": settings.embedding_model,
+            "chunk_ids": "",
+        },
+    ) as trace:
+        state = build_graph(QdrantVectorStore(), generator).invoke(
+            {
+                "workspace_id": workspace_id,
+                "user_id": user_id,
+                "question": question,
+                "route": route,
+                "document_ids": document_ids,
+            }
+        )
+        trace.metadata["chunk_ids"] = json.dumps(
+            [str(chunk.id) for chunk in state.get("retrieved_chunks", [])]
+        )
+        return state
+
+
 def run_chat(
     workspace_id: UUID,
     user_id: UUID,
@@ -118,14 +154,13 @@ def run_chat(
 ) -> ChatResult:
     if route not in {"document_rag", "summary"}:
         raise ValueError("Unsupported chat route")
-    state = build_graph(QdrantVectorStore(), _ollama_generator).invoke(
-        {
-            "workspace_id": workspace_id,
-            "user_id": user_id,
-            "question": question,
-            "route": route,
-            "document_ids": document_ids,
-        }
+    state = _invoke_graph(
+        workspace_id,
+        user_id,
+        question,
+        document_ids,
+        route,
+        _ollama_generator,
     )
     return _result_from_state(state)
 
@@ -147,14 +182,13 @@ def run_chat_stream(
 
     def invoke_graph() -> None:
         try:
-            state = build_graph(QdrantVectorStore(), _ollama_stream_generator(emit)).invoke(
-                {
-                    "workspace_id": workspace_id,
-                    "user_id": user_id,
-                    "question": question,
-                    "route": route,
-                    "document_ids": document_ids,
-                }
+            state = _invoke_graph(
+                workspace_id,
+                user_id,
+                question,
+                document_ids,
+                route,
+                _ollama_stream_generator(emit),
             )
             queue.put(_result_from_state(state))
         except Exception as error:

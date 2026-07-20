@@ -46,6 +46,8 @@ class CsvOperation(BaseModel):
             raise ValueError("Duplicate aggregations are not allowed")
         if len(self.group_by) != len(set(self.group_by)):
             raise ValueError("Duplicate group_by columns are not allowed")
+        if self.group_by and not self.aggregations:
+            raise ValueError("group_by requires at least one aggregation")
         return self
 
 

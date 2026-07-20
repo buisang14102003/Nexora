@@ -121,3 +121,12 @@ def test_document_from_another_workspace_is_not_loaded(csv_document, monkeypatch
         run_csv_operation(document.id, uuid4(), CsvOperation(filters=[], group_by=[], aggregations=[]), session=session)
 
     assert minio.requested_keys == []
+
+
+def test_group_by_requires_an_aggregation() -> None:
+    from pydantic import ValidationError
+
+    from app.services.csv_analysis import CsvOperation
+
+    with pytest.raises(ValidationError, match="group_by requires at least one aggregation"):
+        CsvOperation(group_by=["country"], aggregations=[])
