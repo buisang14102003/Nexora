@@ -21,6 +21,11 @@ def _events(events: Iterator[AnswerDelta | ChatResult]) -> Iterator[str]:
             yield f"event: answer\ndata: {json.dumps({'delta': event.text}, separators=(',', ':'))}\n\n"
         else:
             citations = [citation.model_dump(mode="json") for citation in event.citations]
+            if not citations:
+                yield (
+                    "event: answer\ndata: "
+                    f"{json.dumps({'answer': event.answer, 'replace': True}, separators=(',', ':'))}\n\n"
+                )
             yield f"event: citations\ndata: {json.dumps({'citations': citations}, separators=(',', ':'))}\n\n"
 
 

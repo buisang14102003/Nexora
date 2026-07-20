@@ -2,7 +2,7 @@ from uuid import UUID
 
 from fastapi.testclient import TestClient
 
-from app.rag.graph import AnswerDelta, ChatResult
+from app.rag.graph import AnswerDelta, ChatResult, INSUFFICIENT_EVIDENCE
 from app.schemas.chat import Citation
 
 
@@ -50,6 +50,34 @@ def test_chat_streams_answer_tokens_before_citations(client, register_and_login,
     assert events == ["event: answer", "event: answer", "event: citations"]
     assert '"delta":"Refunds are "' in response.text
     assert '"page_number":3' in response.text
+
+
+def test_chat_replaces_streamed_text_when_citations_are_invalid(
+    client, register_and_login, monkeypatch
+) -> None:
+    from app.api.routers import chat
+
+    token = register_and_login("admin@example.test")
+    workspace_id = _workspace(client, token)
+    monkeypatch.setattr(
+        chat,
+        "run_chat_stream",
+        lambda **_: iter(
+            [
+                AnswerDelta("Refunds are available within 30 days."),
+                ChatResult(answer=INSUFFICIENT_EVIDENCE, citations=[]),
+            ]
+        ),
+    )
+
+    response = client.post(
+        f"/workspaces/{workspace_id}/chat",
+        headers=_headers(token),
+        json={"question": "What is the refund policy?"},
+    )
+
+    assert response.status_code == 200
+    assert 'event: answer\ndata: {"answer":"I could not find that information in this workspace\'s documents.","replace":true}' in response.text
 
 
 def test_non_member_cannot_chat_in_another_workspace(client, register_and_login) -> None:
