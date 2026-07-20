@@ -73,7 +73,7 @@ services:
       qdrant:
         condition: service_started
     ports:
-      - "127.0.0.1:8000:8000"
+      - "127.0.0.1:8100:8000"
     volumes:
       - .:/app
 
@@ -123,7 +123,7 @@ services:
       api:
         condition: service_started
     ports:
-      - "127.0.0.1:8001:8001"
+      - "127.0.0.1:8101:8001"
     volumes:
       - .:/app
 
@@ -162,7 +162,7 @@ services:
       NEXTAUTH_SECRET: ${LANGFUSE_NEXTAUTH_SECRET:-}
       SALT: ${LANGFUSE_SALT:-}
       ENCRYPTION_KEY: ${LANGFUSE_ENCRYPTION_KEY:-}
-      NEXTAUTH_URL: http://localhost:3000
+      NEXTAUTH_URL: http://localhost:3100
       CLICKHOUSE_MIGRATION_URL: clickhouse://clickhouse:9000
       CLICKHOUSE_URL: http://clickhouse:8123
       REDIS_CONNECTION_STRING: redis://redis:6379
@@ -177,7 +177,7 @@ services:
       redis:
         condition: service_started
     ports:
-      - "127.0.0.1:3000:3000"
+      - "127.0.0.1:3100:3000"
 
   langfuse-worker:
     image: langfuse/langfuse:3
