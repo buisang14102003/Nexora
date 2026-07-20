@@ -46,8 +46,7 @@ def main() -> int:
         print(f"Missing environment file: {args.env_file}", file=sys.stderr)
         return 1
 
-    values = read_env_file(args.env_file)
-    values.update(os.environ)
+    values = {**os.environ, **read_env_file(args.env_file)}
     missing = missing_required_variables(values)
     if missing:
         print(

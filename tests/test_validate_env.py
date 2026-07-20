@@ -15,8 +15,9 @@ def test_validate_env_reports_blank_required_values(tmp_path: Path) -> None:
         capture_output=True,
         text=True,
         check=False,
+        env={"POSTGRES_PASSWORD": "host-password"},
     )
 
     assert result.returncode == 1
-    assert "POSTGRES_PASSWORD" in result.stderr
+    assert "DATABASE_URL, POSTGRES_PASSWORD, JWT_SECRET" in result.stderr
     assert "JWT_SECRET" in result.stderr
