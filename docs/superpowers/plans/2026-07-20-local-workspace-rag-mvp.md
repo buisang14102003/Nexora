@@ -47,7 +47,7 @@ Ai-RAG/
 ## Task 1: Bootstrap local runtime and test foundation
 
 **Files:**
-- Create: `pyproject.toml`, `.env.example`, `compose.yaml`, `app/core/config.py`, `app/api/main.py`, `tests/conftest.py`, `tests/test_health.py`, `scripts/pull_models.sh`
+- Create: `pyproject.toml`, `.env.example`, `compose.yaml`, `app/core/config.py`, `app/api/main.py`, `worker/main.py`, `chainlit_app.py`, `tests/conftest.py`, `tests/test_health.py`, `scripts/pull_models.sh`, `scripts/validate_env.py`
 - Modify: `.gitignore`
 
 **Interfaces:**
@@ -112,7 +112,7 @@ def healthz() -> dict[str, str]:
     return {"status": "ok"}
 ```
 
-`compose.yaml` must define `postgres`, `minio`, `qdrant`, `api`, `worker`, `chainlit`, and the self-hosted Langfuse stack. It must mount named volumes for PostgreSQL, MinIO, Qdrant, and Langfuse data; bind application ports only to `127.0.0.1`; and set `OLLAMA_BASE_URL=http://host.docker.internal:11434` for API and worker. `.env.example` must list every required secret without values. `scripts/pull_models.sh` must run `ollama pull gemma3:4b` and `ollama pull qwen3-embedding:0.6b`.
+`compose.yaml` must define `postgres`, `minio`, `qdrant`, `api`, `worker`, `chainlit`, and the self-hosted Langfuse stack. It must mount named volumes for PostgreSQL, MinIO, Qdrant, and Langfuse data; bind application ports only to `127.0.0.1`; and set `OLLAMA_BASE_URL=http://host.docker.internal:11434` for API and worker. Task 1 creates minimal `worker/main.py` and `chainlit_app.py` entry points that start successfully; Task 5 and Task 8 replace them with their functional behavior. `.env.example` lists every secret key without a value, and `scripts/validate_env.py` fails with the names of missing required variables before `docker compose up` is run. `scripts/pull_models.sh` runs `ollama pull gemma3:4b` and `ollama pull qwen3-embedding:0.6b`.
 
 - [ ] **Step 4: Run the focused test and container validation.**
 

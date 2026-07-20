@@ -1,6 +1,13 @@
 name: local-workspace-rag
 
 services:
+  validate-env:
+    image: python:3.11-slim
+    working_dir: /app
+    command: python scripts/validate_env.py
+    volumes:
+      - .:/app:ro
+
   postgres:
     image: postgres:16-alpine
     environment:
@@ -11,6 +18,9 @@ services:
       - "127.0.0.1:5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    depends_on:
+      validate-env:
+        condition: service_completed_successfully
 
   minio:
     image: minio/minio:RELEASE.2025-02-18T16-25-55Z
@@ -23,6 +33,9 @@ services:
       - "127.0.0.1:9001:9001"
     volumes:
       - minio_data:/data
+    depends_on:
+      validate-env:
+        condition: service_completed_successfully
 
   qdrant:
     image: qdrant/qdrant:v1.13.1
@@ -38,7 +51,7 @@ services:
     command: >-
       sh -c "pip install --no-cache-dir . && uvicorn app.api.main:app --host 0.0.0.0 --port 8000"
     environment:
-      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-rag}:${POSTGRES_PASSWORD:-}@postgres:5432/${POSTGRES_DB:-rag}
+      DATABASE_URL: ${DATABASE_URL:-}
       JWT_SECRET: ${JWT_SECRET:-}
       OLLAMA_BASE_URL: http://host.docker.internal:11434
       CHAT_MODEL: gemma3:4b
@@ -46,9 +59,14 @@ services:
     extra_hosts:
       - host.docker.internal:host-gateway
     depends_on:
-      - postgres
-      - minio
-      - qdrant
+      validate-env:
+        condition: service_completed_successfully
+      postgres:
+        condition: service_started
+      minio:
+        condition: service_started
+      qdrant:
+        condition: service_started
     ports:
       - "127.0.0.1:8000:8000"
     volumes:
@@ -59,7 +77,7 @@ services:
     working_dir: /app
     command: sh -c "pip install --no-cache-dir . && python -m worker.main"
     environment:
-      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-rag}:${POSTGRES_PASSWORD:-}@postgres:5432/${POSTGRES_DB:-rag}
+      DATABASE_URL: ${DATABASE_URL:-}
       JWT_SECRET: ${JWT_SECRET:-}
       OLLAMA_BASE_URL: http://host.docker.internal:11434
       CHAT_MODEL: gemma3:4b
@@ -67,9 +85,14 @@ services:
     extra_hosts:
       - host.docker.internal:host-gateway
     depends_on:
-      - postgres
-      - minio
-      - qdrant
+      validate-env:
+        condition: service_completed_successfully
+      postgres:
+        condition: service_started
+      minio:
+        condition: service_started
+      qdrant:
+        condition: service_started
     volumes:
       - .:/app
 
@@ -80,7 +103,10 @@ services:
     environment:
       API_BASE_URL: http://api:8000
     depends_on:
-      - api
+      validate-env:
+        condition: service_completed_successfully
+      api:
+        condition: service_started
     ports:
       - "127.0.0.1:8001:8001"
     volumes:
@@ -94,6 +120,9 @@ services:
       POSTGRES_PASSWORD: ${LANGFUSE_POSTGRES_PASSWORD:-}
     volumes:
       - langfuse_postgres_data:/var/lib/postgresql/data
+    depends_on:
+      validate-env:
+        condition: service_completed_successfully
 
   clickhouse:
     image: clickhouse/clickhouse-server:24.8-alpine
@@ -118,9 +147,14 @@ services:
       REDIS_CONNECTION_STRING: redis://redis:6379
       TELEMETRY_ENABLED: "false"
     depends_on:
-      - langfuse-postgres
-      - clickhouse
-      - redis
+      validate-env:
+        condition: service_completed_successfully
+      langfuse-postgres:
+        condition: service_started
+      clickhouse:
+        condition: service_started
+      redis:
+        condition: service_started
     ports:
       - "127.0.0.1:3000:3000"
 
@@ -137,9 +171,14 @@ services:
       REDIS_CONNECTION_STRING: redis://redis:6379
       TELEMETRY_ENABLED: "false"
     depends_on:
-      - langfuse-postgres
-      - clickhouse
-      - redis
+      validate-env:
+        condition: service_completed_successfully
+      langfuse-postgres:
+        condition: service_started
+      clickhouse:
+        condition: service_started
+      redis:
+        condition: service_started
 
 volumes:
   postgres_data:
