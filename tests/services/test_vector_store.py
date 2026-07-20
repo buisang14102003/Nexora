@@ -9,6 +9,7 @@ from app.services.vector_store import QdrantVectorStore
 
 WORKSPACE_ID = UUID("00000000-0000-0000-0000-000000000010")
 DOCUMENT_ID = UUID("00000000-0000-0000-0000-000000000020")
+SECOND_DOCUMENT_ID = UUID("00000000-0000-0000-0000-000000000021")
 
 
 class FakeEmbeddings:
@@ -128,3 +129,20 @@ def test_search_adds_document_filter_without_dropping_workspace_filter() -> None
         "workspace_id",
         "document_id",
     ]
+
+
+def test_search_filters_multiple_selected_documents_before_top_k() -> None:
+    client = FakeQdrant()
+    store = QdrantVectorStore(client=client, embeddings=FakeEmbeddings())
+
+    store.search(
+        "question",
+        workspace_id=WORKSPACE_ID,
+        document_ids=[DOCUMENT_ID, SECOND_DOCUMENT_ID],
+    )
+
+    assert client.query_filter is not None
+    assert client.query_filter.must[1] == qdrant_models.FieldCondition(
+        key="document_id",
+        match=qdrant_models.MatchAny(any=[str(DOCUMENT_ID), str(SECOND_DOCUMENT_ID)]),
+    )

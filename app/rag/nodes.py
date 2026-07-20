@@ -1,3 +1,4 @@
+import json
 from collections.abc import Callable
 from typing import TypedDict
 from uuid import UUID
@@ -15,9 +16,31 @@ class GraphState(TypedDict, total=False):
     document_ids: list[UUID] | None
     retrieved_chunks: list[Chunk]
     answer: str
+    cited_chunk_ids: list[UUID]
 
 
 AnswerGenerator = Callable[[str], str]
+_CITATION_START = "<CITATIONS>"
+_CITATION_END = "</CITATIONS>"
+_INSUFFICIENT_EVIDENCE = "I could not find that information in this workspace's documents."
+
+
+def parse_model_response(response: str) -> tuple[str, list[UUID]]:
+    answer_text, marker, remainder = response.partition(_CITATION_START)
+    citation_payload, end_marker, _ = remainder.partition(_CITATION_END)
+    if not marker or not end_marker:
+        return _INSUFFICIENT_EVIDENCE, []
+    try:
+        parsed = json.loads(citation_payload)
+        if not isinstance(parsed, list) or not all(isinstance(value, str) for value in parsed):
+            raise ValueError
+        cited_chunk_ids = [UUID(value) for value in parsed]
+    except (ValueError, TypeError, json.JSONDecodeError):
+        return _INSUFFICIENT_EVIDENCE, []
+    clean_answer = answer_text.strip()
+    if not clean_answer or clean_answer == _INSUFFICIENT_EVIDENCE:
+        return _INSUFFICIENT_EVIDENCE, []
+    return clean_answer, cited_chunk_ids
 
 
 def retrieve(
@@ -25,9 +48,9 @@ def retrieve(
     vector_store: QdrantVectorStore,
 ) -> GraphState:
     document_ids = state.get("document_ids")
-    if document_ids and len(document_ids) == 1:
+    if document_ids:
         points = vector_store.search(
-            state["question"], workspace_id=state["workspace_id"], document_id=document_ids[0]
+            state["question"], workspace_id=state["workspace_id"], document_ids=document_ids
         )
     else:
         points = vector_store.search(state["question"], workspace_id=state["workspace_id"])
@@ -45,9 +68,6 @@ def retrieve(
         for point in points
         if point.payload is not None
     ]
-    if document_ids:
-        allowed = set(document_ids)
-        chunks = [chunk for chunk in chunks if chunk.document_id in allowed]
     return {"retrieved_chunks": chunks}
 
 
@@ -59,4 +79,6 @@ def answer(state: GraphState, generator: AnswerGenerator) -> GraphState:
         f"[chunk_id={chunk.id}; source={chunk.source_name}; page={chunk.page_number}]\n{chunk.text}"
         for chunk in chunks
     )
-    return {"answer": generator(answer_prompt(state["question"], evidence, state.get("route", "document_rag")))}
+    response = generator(answer_prompt(state["question"], evidence, state.get("route", "document_rag")))
+    answer_text, cited_chunk_ids = parse_model_response(response)
+    return {"answer": answer_text, "cited_chunk_ids": cited_chunk_ids}

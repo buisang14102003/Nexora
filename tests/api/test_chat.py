@@ -2,7 +2,7 @@ from uuid import UUID
 
 from fastapi.testclient import TestClient
 
-from app.rag.graph import ChatResult
+from app.rag.graph import AnswerDelta, ChatResult
 from app.schemas.chat import Citation
 
 
@@ -16,7 +16,7 @@ def _workspace(client: TestClient, token: str) -> str:
     return response.json()["id"]
 
 
-def test_chat_streams_answer_then_citations(client, register_and_login, monkeypatch) -> None:
+def test_chat_streams_answer_tokens_before_citations(client, register_and_login, monkeypatch) -> None:
     from app.api.routers import chat
 
     token = register_and_login("admin@example.test")
@@ -29,8 +29,14 @@ def test_chat_streams_answer_then_citations(client, register_and_login, monkeypa
     )
     monkeypatch.setattr(
         chat,
-        "run_chat",
-        lambda **_: ChatResult(answer="Refunds are available within 30 days.", citations=[citation]),
+        "run_chat_stream",
+        lambda **_: iter(
+            [
+                AnswerDelta("Refunds are "),
+                AnswerDelta("available within 30 days."),
+                ChatResult(answer="Refunds are available within 30 days.", citations=[citation]),
+            ]
+        ),
     )
 
     response = client.post(
@@ -41,7 +47,8 @@ def test_chat_streams_answer_then_citations(client, register_and_login, monkeypa
 
     assert response.status_code == 200
     events = [line for line in response.text.splitlines() if line.startswith("event:")]
-    assert events == ["event: answer", "event: citations"]
+    assert events == ["event: answer", "event: answer", "event: citations"]
+    assert '"delta":"Refunds are "' in response.text
     assert '"page_number":3' in response.text
 
 

@@ -82,6 +82,7 @@ class QdrantVectorStore:
         *,
         workspace_id: UUID,
         document_id: UUID | None = None,
+        document_ids: Sequence[UUID] | None = None,
         limit: int = 5,
     ) -> list[Any]:
         conditions = [
@@ -90,11 +91,20 @@ class QdrantVectorStore:
                 match=qdrant_models.MatchValue(value=str(workspace_id)),
             )
         ]
+        if document_id is not None and document_ids is not None:
+            raise ValueError("Use document_id or document_ids, not both")
         if document_id is not None:
             conditions.append(
                 qdrant_models.FieldCondition(
                     key="document_id",
                     match=qdrant_models.MatchValue(value=str(document_id)),
+                )
+            )
+        elif document_ids:
+            conditions.append(
+                qdrant_models.FieldCondition(
+                    key="document_id",
+                    match=qdrant_models.MatchAny(any=[str(value) for value in document_ids]),
                 )
             )
         try:
