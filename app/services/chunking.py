@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 from functools import lru_cache
+from pathlib import Path
 from typing import Protocol
 from uuid import UUID, uuid5
 
@@ -29,9 +30,46 @@ class TextTokenizer(Protocol):
     ) -> Encoding: ...
 
 
+@dataclass(frozen=True)
+class LocalByteEncoding:
+    ids: list[int]
+    offsets: list[tuple[int, int]]
+
+
+class LocalByteTokenizer:
+    """Conservative tokenizer that is always available without network access."""
+
+    def encode(
+        self,
+        sequence: str,
+        add_special_tokens: bool = False,
+    ) -> LocalByteEncoding:
+        if add_special_tokens:
+            raise ValueError("Local byte tokenizer does not support special tokens")
+
+        ids: list[int] = []
+        offsets: list[tuple[int, int]] = []
+        for start, character in enumerate(sequence):
+            end = start + 1
+            encoded = character.encode("utf-8")
+            ids.extend(encoded)
+            offsets.extend([(start, end)] * len(encoded))
+        return LocalByteEncoding(ids=ids, offsets=offsets)
+
+
 @lru_cache
 def get_tokenizer(name: str) -> TextTokenizer:
-    return Tokenizer.from_pretrained(name)
+    if name == "local-byte":
+        return LocalByteTokenizer()
+
+    tokenizer_path = Path(name)
+    if tokenizer_path.is_file():
+        return Tokenizer.from_file(str(tokenizer_path))
+
+    raise ValueError(
+        "EMBEDDING_TOKENIZER must be 'local-byte' or a local tokenizer file path; "
+        f"received {name!r}"
+    )
 
 
 def chunk_pages(

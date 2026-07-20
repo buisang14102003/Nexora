@@ -1,6 +1,8 @@
 from uuid import UUID
 
-from app.services.chunking import chunk_pages
+import pytest
+
+from app.services.chunking import chunk_pages, get_tokenizer
 from app.services.parsers import ExtractedPage
 
 
@@ -17,6 +19,27 @@ class CharacterTokenizer:
     def encode(self, text: str, add_special_tokens: bool = False) -> CharacterEncoding:
         assert add_special_tokens is False
         return CharacterEncoding(text)
+
+
+def test_local_byte_tokenizer_never_uses_pretrained_download(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def network_access(_: str) -> object:
+        raise AssertionError("Tokenizer resolution must not access the network")
+
+    monkeypatch.setattr(
+        "app.services.chunking.Tokenizer.from_pretrained",
+        network_access,
+    )
+
+    tokenizer = get_tokenizer("local-byte")
+
+    assert len(tokenizer.encode("Việt Nam").ids) == len("Việt Nam".encode("utf-8"))
+
+
+def test_tokenizer_requires_a_local_file_or_the_local_byte_mode() -> None:
+    with pytest.raises(ValueError, match="local tokenizer file"):
+        get_tokenizer("Qwen/Qwen3-Embedding-0.6B")
 
 
 def test_chunk_retains_page_source_and_offsets() -> None:

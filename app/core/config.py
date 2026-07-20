@@ -21,7 +21,7 @@ class Settings(BaseSettings):
     jwt_algorithm: str = "HS256"
     chat_model: str = "gemma3:4b"
     embedding_model: str = "qwen3-embedding:0.6b"
-    embedding_tokenizer: str = "Qwen/Qwen3-Embedding-0.6B"
+    embedding_tokenizer: str = "local-byte"
     embedding_max_tokens: int = 32_768
     chunk_size_tokens: int = 400
     chunk_overlap_tokens: int = 50
