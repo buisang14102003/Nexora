@@ -116,3 +116,25 @@ class IngestionJob(TimestampedModel, Base):
     attempts: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     error_message: Mapped[str | None] = mapped_column(String(1000), nullable=True)
     claimed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+class ChatMessage(TimestampedModel, Base):
+    __tablename__ = "chat_messages"
+
+    id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid4)
+    workspace_id: Mapped[UUID] = mapped_column(ForeignKey("workspaces.id"), nullable=False)
+    user_id: Mapped[UUID] = mapped_column(ForeignKey("users.id"), nullable=False)
+    route: Mapped[str] = mapped_column(String(32), nullable=False)
+    answer: Mapped[str] = mapped_column(String, nullable=False)
+
+
+class ChatCitation(Base):
+    __tablename__ = "chat_citations"
+
+    id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid4)
+    message_id: Mapped[UUID] = mapped_column(ForeignKey("chat_messages.id"), nullable=False)
+    document_id: Mapped[UUID] = mapped_column(ForeignKey("documents.id"), nullable=False)
+    source_name: Mapped[str] = mapped_column(String(512), nullable=False)
+    page_number: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    row_range: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    chunk_id: Mapped[UUID | None] = mapped_column(Uuid(as_uuid=True), nullable=True)
