@@ -118,23 +118,23 @@ class IngestionJob(TimestampedModel, Base):
     claimed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
 
-class ChatMessage(TimestampedModel, Base):
-    __tablename__ = "chat_messages"
+class ChatSession(TimestampedModel, Base):
+    __tablename__ = "chat_sessions"
 
     id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid4)
     workspace_id: Mapped[UUID] = mapped_column(ForeignKey("workspaces.id"), nullable=False)
     user_id: Mapped[UUID] = mapped_column(ForeignKey("users.id"), nullable=False)
-    route: Mapped[str] = mapped_column(String(32), nullable=False)
-    answer: Mapped[str] = mapped_column(String, nullable=False)
+    title: Mapped[str] = mapped_column(String(255), nullable=False)
 
 
-class ChatCitation(Base):
-    __tablename__ = "chat_citations"
+class ChatMessage(Base):
+    __tablename__ = "chat_messages"
 
     id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid4)
-    message_id: Mapped[UUID] = mapped_column(ForeignKey("chat_messages.id"), nullable=False)
-    document_id: Mapped[UUID] = mapped_column(ForeignKey("documents.id"), nullable=False)
-    source_name: Mapped[str] = mapped_column(String(512), nullable=False)
-    page_number: Mapped[int | None] = mapped_column(Integer, nullable=True)
-    row_range: Mapped[str | None] = mapped_column(String(255), nullable=True)
-    chunk_id: Mapped[UUID | None] = mapped_column(Uuid(as_uuid=True), nullable=True)
+    session_id: Mapped[UUID] = mapped_column(ForeignKey("chat_sessions.id"), nullable=False)
+    role: Mapped[str] = mapped_column(String(16), nullable=False)
+    content: Mapped[str] = mapped_column(String, nullable=False)
+    citations: Mapped[list[dict[str, object]]] = mapped_column(JSON, nullable=False, default=list)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )

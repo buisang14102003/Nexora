@@ -1,6 +1,7 @@
+from datetime import datetime
 from uuid import UUID
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 from app.services.csv_analysis import CsvOperation
 
@@ -17,6 +18,40 @@ class ChatRequest(BaseModel):
     question: str = Field(min_length=1, max_length=8_000)
     document_ids: list[UUID] | None = Field(default=None, max_length=20)
     route: str = Field(default="document_rag", pattern="^(document_rag|summary)$")
+    session_id: UUID | None = None
+
+
+class ChatSessionCreate(BaseModel):
+    title: str = Field(default="New chat", min_length=1, max_length=255)
+
+
+class ChatSessionRename(BaseModel):
+    title: str = Field(min_length=1, max_length=255)
+
+
+class ChatMessageResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    role: str
+    content: str
+    citations: list[Citation]
+    created_at: datetime
+
+
+class ChatSessionResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    workspace_id: UUID
+    user_id: UUID
+    title: str
+    created_at: datetime
+    updated_at: datetime
+
+
+class ChatSessionDetailResponse(ChatSessionResponse):
+    messages: list[ChatMessageResponse]
 
 
 class CsvAnalysisRequest(BaseModel):

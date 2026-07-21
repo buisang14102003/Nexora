@@ -1,6 +1,8 @@
-from app.db.models import ChatCitation, ChatMessage
+from app.db.models import ChatMessage, ChatSession
 
 
-def test_chat_models_store_answer_and_citation_evidence() -> None:
+def test_chat_models_store_session_messages_and_citations() -> None:
+    assert ChatSession.__tablename__ == "chat_sessions"
     assert ChatMessage.__tablename__ == "chat_messages"
-    assert ChatCitation.__tablename__ == "chat_citations"
+    assert "session_id" in ChatMessage.__table__.columns
+    assert "citations" in ChatMessage.__table__.columns
