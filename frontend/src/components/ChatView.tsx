@@ -1,8 +1,8 @@
-import { FormEvent, useState } from "react";
+import { ChangeEvent, FormEvent, useState } from "react";
 
-import type { ChatMessage } from "../api/client";
+import type { ChatMessage, WorkspaceDocument } from "../api/client";
 
-export function ChatView({ workspaceName, messages, isStreaming, error, onSend }: { workspaceName: string | null; messages: ChatMessage[]; isStreaming: boolean; error: string; onSend: (question: string) => Promise<void> }) {
+export function ChatView({ workspaceName, documents, messages, isStreaming, error, onUpload, onSend }: { workspaceName: string | null; documents: WorkspaceDocument[]; messages: ChatMessage[]; isStreaming: boolean; error: string; onUpload: (files: FileList) => Promise<void>; onSend: (question: string) => Promise<void> }) {
   const [question, setQuestion] = useState("");
 
   async function submit(event: FormEvent<HTMLFormElement>) {
@@ -13,12 +13,17 @@ export function ChatView({ workspaceName, messages, isStreaming, error, onSend }
     await onSend(value);
   }
 
+  function upload(event: ChangeEvent<HTMLInputElement>) {
+    if (event.target.files?.length) void onUpload(event.target.files);
+    event.target.value = "";
+  }
+
   return (
     <main className="chat-panel">
-      <header className="chat-header"><div><p className="eyebrow">WORKSPACE</p><h1>{workspaceName ?? "Chọn workspace"}</h1></div></header>
+      <header className="chat-header"><div><p className="eyebrow">WORKSPACE</p><h1>{workspaceName ?? "Chọn workspace"}</h1></div>{workspaceName && <label className="upload-button">Thêm tài liệu<input type="file" accept=".pdf,.docx,.csv,image/png,image/jpeg" multiple onChange={upload} /></label>}</header>
       <section className="transcript" aria-live="polite">
         {!workspaceName && <div className="empty-state"><h2>Bắt đầu với workspace</h2><p>Tạo hoặc chọn một workspace ở thanh bên trái.</p></div>}
-        {workspaceName && messages.length === 0 && <div className="empty-state"><h2>Chat mới</h2><p>Gửi câu hỏi để tìm câu trả lời trong tài liệu của workspace này.</p></div>}
+        {workspaceName && messages.length === 0 && <div className="empty-state"><h2>Chat mới</h2><p>Thêm PDF, DOCX, CSV hoặc ảnh rồi gửi câu hỏi về tài liệu trong workspace này.</p>{documents.length > 0 && <ul className="document-list">{documents.map((document) => <li key={document.id}>{document.original_filename} <span>{document.status}</span></li>)}</ul>}</div>}
         {messages.map((message, index) => <article className={`message ${message.role}`} key={message.id ?? `${message.role}-${index}`}>
           <span className="message-role">{message.role === "user" ? "Bạn" : "RAG"}</span>
           <p>{message.content || (isStreaming && message.role === "assistant" ? "Đang trả lời…" : "")}</p>

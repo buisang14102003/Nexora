@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 
-import { ApiError, ChatMessage, ChatSession, createApiClient, signIn, signUp, Workspace } from "./api/client";
+import { ApiError, ChatMessage, ChatSession, createApiClient, signIn, signUp, Workspace, WorkspaceDocument } from "./api/client";
 import { clearToken, readToken, saveToken } from "./auth/token";
 import { AuthView } from "./components/AuthView";
 import { ChatView } from "./components/ChatView";
@@ -13,6 +13,7 @@ export default function App() {
   const [sessions, setSessions] = useState<ChatSession[]>([]);
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [documents, setDocuments] = useState<WorkspaceDocument[]>([]);
   const [error, setError] = useState("");
   const [streaming, setStreaming] = useState(false);
   const api = useMemo(() => (token ? createApiClient(token) : null), [token]);
@@ -49,6 +50,15 @@ export default function App() {
     }
   }
 
+  async function loadDocuments(nextWorkspaceId: string) {
+    if (!api) return;
+    try {
+      setDocuments(await api.listDocuments(nextWorkspaceId));
+    } catch (reason) {
+      handleApiError(reason);
+    }
+  }
+
   useEffect(() => {
     if (api) void loadWorkspaces();
     else {
@@ -57,11 +67,15 @@ export default function App() {
       setSessions([]);
       setSessionId(null);
       setMessages([]);
+      setDocuments([]);
     }
   }, [api]);
 
   useEffect(() => {
-    if (workspaceId) void loadSessions(workspaceId);
+    if (workspaceId) {
+      void loadSessions(workspaceId);
+      void loadDocuments(workspaceId);
+    }
   }, [workspaceId]);
 
   async function authenticate(email: string, password: string, mode: "signin" | "signup") {
@@ -81,6 +95,17 @@ export default function App() {
     const workspace = await api.createWorkspace(name);
     setWorkspaces((current) => [workspace, ...current]);
     setWorkspaceId(workspace.id);
+  }
+
+  async function uploadDocuments(files: FileList) {
+    if (!api || !workspaceId) return;
+    try {
+      setError("");
+      const uploaded = await Promise.all(Array.from(files).map((file) => api.uploadDocument(workspaceId, file)));
+      setDocuments((current) => [...uploaded, ...current]);
+    } catch (reason) {
+      handleApiError(reason);
+    }
   }
 
   async function newChat(): Promise<ChatSession | null> {
@@ -171,6 +196,6 @@ export default function App() {
 
   return <div className="app-shell">
     <Sidebar workspaces={workspaces} activeWorkspaceId={workspaceId} sessions={sessions} activeSessionId={sessionId} onSelectWorkspace={setWorkspaceId} onCreateWorkspace={createWorkspace} onNewChat={newChat} onSelectSession={selectSession} onRenameSession={renameSession} onDeleteSession={deleteSession} onLogout={logout} />
-    <ChatView workspaceName={activeWorkspace?.name ?? null} messages={messages} isStreaming={streaming} error={error} onSend={send} />
+    <ChatView workspaceName={activeWorkspace?.name ?? null} documents={documents} messages={messages} isStreaming={streaming} error={error} onUpload={uploadDocuments} onSend={send} />
   </div>;
 }

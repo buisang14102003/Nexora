@@ -33,6 +33,16 @@ export type ChatSession = {
 
 export type ChatSessionDetail = ChatSession & { messages: ChatMessage[] };
 
+export type WorkspaceDocument = {
+  id: string;
+  original_filename: string;
+  mime_type: string;
+  source_type: string;
+  status: "queued" | "processing" | "ready" | "failed";
+  created_at: string;
+  updated_at: string;
+};
+
 export class ApiError extends Error {
   constructor(
     public readonly status: number,
@@ -84,6 +94,19 @@ export function createApiClient(token: string, fetcher: Fetcher = fetch) {
     listWorkspaces: () => request<Workspace[]>("/workspaces"),
     createWorkspace: (name: string) =>
       request<Workspace>("/workspaces", { method: "POST", body: JSON.stringify({ name }) }),
+    listDocuments: (workspaceId: string) =>
+      request<WorkspaceDocument[]>(`/workspaces/${workspaceId}/documents`),
+    async uploadDocument(workspaceId: string, file: File) {
+      const formData = new FormData();
+      formData.append("file", file);
+      const response = await fetcher(`${API_BASE_URL}/workspaces/${workspaceId}/documents`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+        body: formData,
+      });
+      if (!response.ok) throw new ApiError(response.status, await errorMessage(response));
+      return (await response.json()) as WorkspaceDocument;
+    },
     listSessions: (workspaceId: string) =>
       request<ChatSession[]>(`/workspaces/${workspaceId}/chat-sessions`),
     createSession: (workspaceId: string) =>
