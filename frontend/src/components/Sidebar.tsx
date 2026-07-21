@@ -21,6 +21,7 @@ export function Sidebar({ workspaces, activeWorkspaceId, sessions, activeSession
   const [workspaceName, setWorkspaceName] = useState("");
   const [workspaceError, setWorkspaceError] = useState("");
   const [creating, setCreating] = useState(false);
+  const [profileMenuOpen, setProfileMenuOpen] = useState(false);
 
   async function createWorkspace(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -67,7 +68,13 @@ export function Sidebar({ workspaces, activeWorkspaceId, sessions, activeSession
           </div>)}
         </nav>
       </div>
-      <button className="logout-button" onClick={onLogout}>Đăng xuất</button>
+      <div className="profile-menu-wrap">
+        {profileMenuOpen && <div className="profile-menu">
+          <a href="http://127.0.0.1:3100" target="_blank" rel="noreferrer">Xem log Langfuse</a>
+          <button onClick={onLogout}>Đăng xuất</button>
+        </div>}
+        <button className="avatar-button" aria-label="Mở menu tài khoản" aria-expanded={profileMenuOpen} onClick={() => setProfileMenuOpen((open) => !open)}>R</button>
+      </div>
     </aside>
   );
 }
