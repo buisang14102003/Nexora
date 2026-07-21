@@ -19,8 +19,9 @@ class Settings(BaseSettings):
     ollama_base_url: str = "http://host.docker.internal:11434"
     jwt_secret: str
     jwt_algorithm: str = "HS256"
-    chat_model: str = "gemma3:4b"
-    embedding_model: str = "qwen3-embedding:0.6b"
+    chat_model: str = "deepseek-r1:7b"
+    embedding_model: str = "BAAI/bge-m3"
+    embedding_base_url: str = "http://bgem3.sbuidev.com"
     embedding_tokenizer: str = "local-byte"
     embedding_max_tokens: int = 32_768
     chunk_size_tokens: int = 400

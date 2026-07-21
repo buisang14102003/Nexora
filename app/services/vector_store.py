@@ -2,7 +2,7 @@ from collections.abc import Sequence
 from typing import Any, Protocol
 from uuid import UUID
 
-from langchain_ollama import OllamaEmbeddings
+import httpx
 from qdrant_client import QdrantClient
 from qdrant_client.http import models as qdrant_models
 
@@ -20,6 +20,30 @@ class Embeddings(Protocol):
     def embed_query(self, text: str) -> list[float]: ...
 
 
+class OpenAICompatibleEmbeddings:
+    """Minimal local OpenAI-compatible embeddings client for BGE-M3."""
+
+    def __init__(self, base_url: str, model: str) -> None:
+        self.base_url = base_url.rstrip("/")
+        self.model = model
+
+    def embed_documents(self, texts: list[str]) -> list[list[float]]:
+        response = httpx.post(
+            f"{self.base_url}/v1/embeddings",
+            json={"input": texts, "model": self.model, "encoding_format": "float"},
+            timeout=60.0,
+        )
+        response.raise_for_status()
+        data = response.json().get("data", [])
+        return [list(item["embedding"]) for item in sorted(data, key=lambda item: item["index"])]
+
+    def embed_query(self, text: str) -> list[float]:
+        vectors = self.embed_documents([text])
+        if not vectors:
+            raise VectorStoreError("Embedding response was empty")
+        return vectors[0]
+
+
 class QdrantVectorStore:
     def __init__(
         self,
@@ -29,9 +53,9 @@ class QdrantVectorStore:
     ) -> None:
         settings = get_settings() if client is None or embeddings is None else None
         self.client = client or QdrantClient(url=settings.qdrant_url)
-        self.embeddings = embeddings or OllamaEmbeddings(
+        self.embeddings = embeddings or OpenAICompatibleEmbeddings(
+            base_url=settings.embedding_base_url,
             model=settings.embedding_model,
-            base_url=settings.ollama_base_url,
         )
         self.collection_name = collection_name or (
             settings.qdrant_collection if settings is not None else "document_chunks"

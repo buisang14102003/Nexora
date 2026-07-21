@@ -69,8 +69,9 @@ services:
       MINIO_ACCESS_KEY: ${MINIO_ROOT_USER:-rag}
       MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-}
       OLLAMA_BASE_URL: http://host.docker.internal:11434
-      CHAT_MODEL: gemma3:4b
-      EMBEDDING_MODEL: qwen3-embedding:0.6b
+      CHAT_MODEL: ${CHAT_MODEL:-deepseek-r1:7b}
+      EMBEDDING_MODEL: ${EMBEDDING_MODEL:-BAAI/bge-m3}
+      EMBEDDING_BASE_URL: ${EMBEDDING_BASE_URL:-http://bgem3.sbuidev.com}
     extra_hosts:
       - host.docker.internal:host-gateway
     depends_on:
@@ -101,8 +102,9 @@ services:
       MINIO_ACCESS_KEY: ${MINIO_ROOT_USER:-rag}
       MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-}
       OLLAMA_BASE_URL: http://host.docker.internal:11434
-      CHAT_MODEL: gemma3:4b
-      EMBEDDING_MODEL: qwen3-embedding:0.6b
+      CHAT_MODEL: ${CHAT_MODEL:-deepseek-r1:7b}
+      EMBEDDING_MODEL: ${EMBEDDING_MODEL:-BAAI/bge-m3}
+      EMBEDDING_BASE_URL: ${EMBEDDING_BASE_URL:-http://bgem3.sbuidev.com}
       EMBEDDING_TOKENIZER: ${EMBEDDING_TOKENIZER:-local-byte}
       EMBEDDING_MAX_TOKENS: ${EMBEDDING_MAX_TOKENS:-32768}
       CHUNK_SIZE_TOKENS: ${CHUNK_SIZE_TOKENS:-400}
