@@ -6,7 +6,7 @@ from app.api.routers import account_page, auth, chat, documents, sessions, works
 app = FastAPI(title="Local Workspace RAG")
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://127.0.0.1:8102"],
+    allow_origins=["http://127.0.0.1:8102", "http://localhost:8102"],
     allow_credentials=False,
     allow_methods=["GET", "POST", "PATCH", "DELETE"],
     allow_headers=["Authorization", "Content-Type"],
