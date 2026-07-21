@@ -34,7 +34,7 @@ def _registration_html(error: str | None = None) -> str:
         <label>Mật khẩu <input type="password" name="password" required></label>
         <button type="submit">Tạo tài khoản</button>
       </form>
-      <p class="auth-link">Already have an account? <a href="http://127.0.0.1:8101">Sign in</a></p>
+      <a class="auth-secondary-button" href="http://127.0.0.1:8101">Sign in</a>
     </main>
   </body>
 </html>"""

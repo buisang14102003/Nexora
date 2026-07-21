@@ -176,6 +176,34 @@
   color: #fff;
 }
 
+.auth-secondary-button {
+  align-items: center;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 0.375rem;
+  box-sizing: border-box;
+  color: #202123;
+  display: flex;
+  font-weight: 600;
+  justify-content: center;
+  min-height: 2.75rem;
+  text-decoration: none;
+  width: 100%;
+}
+
+.auth-secondary-button:hover {
+  background: #f7f7f8;
+}
+
+.auth-secondary-button:focus-visible {
+  outline: 3px solid rgb(16 163 127 / 45%);
+  outline-offset: 2px;
+}
+
+#root > .grid.min-h-svh .auth-secondary-button {
+  margin-top: 1rem;
+}
+
 @media (max-width: 480px) {
   .auth-page,
   #root > .grid.min-h-svh {
