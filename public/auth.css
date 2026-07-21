@@ -204,6 +204,27 @@
   margin-top: 1rem;
 }
 
+#local-rag-workspace-create {
+  position: fixed;
+  top: 16px;
+  left: 16px;
+  z-index: 20;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  background: #fff;
+  color: #202123;
+  cursor: pointer;
+  font: 600 14px/1.2 ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  padding: 10px 12px;
+}
+
+#local-rag-workspace-create:hover,
+#local-rag-workspace-create:focus-visible {
+  background: #f3f4f6;
+  outline: 3px solid #a7f3d0;
+  outline-offset: 2px;
+}
+
 @media (max-width: 480px) {
   .auth-page,
   #root > .grid.min-h-svh {

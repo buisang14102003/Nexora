@@ -277,6 +277,20 @@ async def chat(message: cl.Message) -> None:
     if question == "/documents":
         await _show_documents()
         return
+    if question.startswith("/create-workspace "):
+        name = question.removeprefix("/create-workspace ").strip()
+        if not name:
+            await cl.Message(content="Tên workspace không được để trống.").send()
+            return
+        try:
+            workspace = await _api().create_workspace(_session("token"), name)
+        except ApiError as exc:
+            await cl.Message(content=f"Không thể tạo workspace: {exc}").send()
+            return
+        cl.user_session.set("workspace_id", str(workspace["id"]))
+        cl.user_session.set("workspace_name", workspace["name"])
+        await cl.Message(content=f"Đã tạo và chọn workspace **{workspace['name']}**.").send()
+        return
 
     token, workspace_id = _session("token"), _session("workspace_id")
     if not token or not workspace_id:
