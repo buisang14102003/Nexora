@@ -8,7 +8,7 @@ function addSignUpLink() {
   link.id = "local-rag-sign-up";
   link.className = "auth-secondary-button";
   link.href = registerUrl;
-  link.textContent = "Sign up";
+  link.textContent = "Tạo tài khoản";
   submit.insertAdjacentElement("afterend", link);
   return true;
 }

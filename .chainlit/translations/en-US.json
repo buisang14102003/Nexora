@@ -18,26 +18,26 @@
     },
     "auth": {
         "login": {
-            "title": "Login to Local RAG Workspace",
+            "title": "Đăng nhập Local RAG Workspace",
             "form": {
                 "email": {
-                    "label": "Email address",
-                    "required": "email is a required field"
+                    "label": "Địa chỉ email",
+                    "required": "Email là trường bắt buộc"
                 },
                 "password": {
-                    "label": "Password",
-                    "required": "password is a required field"
+                    "label": "Mật khẩu",
+                    "required": "Mật khẩu là trường bắt buộc"
                 },
                 "actions": {
-                    "signin": "Sign In"
+                    "signin": "Đăng nhập"
                 },
                 "alternativeText": {
                     "or": "OR"
                 }
             },
             "errors": {
-                "default": "Unable to sign in",
-                "signin": "Try signing in with a different account",
+                "default": "Không thể đăng nhập",
+                "signin": "Hãy thử đăng nhập bằng tài khoản khác",
                 "oauthSignin": "Try signing in with a different account",
                 "redirectUriMismatch": "The redirect URI is not matching the oauth app configuration",
                 "oauthCallback": "Try signing in with a different account",
@@ -47,8 +47,8 @@
                 "oauthAccountNotLinked": "To confirm your identity, sign in with the same account you used originally",
                 "emailSignin": "The e-mail could not be sent",
                 "emailVerify": "Please verify your email, a new email has been sent",
-                "credentialsSignin": "Sign in failed. Check the details you provided are correct",
-                "sessionRequired": "Please sign in to access this page"
+                "credentialsSignin": "Đăng nhập thất bại. Hãy kiểm tra lại email và mật khẩu.",
+                "sessionRequired": "Hãy đăng nhập để truy cập trang này"
             }
         },
         "provider": {

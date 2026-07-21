@@ -26,15 +26,15 @@ def _registration_html(error: str | None = None) -> str:
   <body class="auth-page">
     <main class="auth-card">
       <div class="auth-mark" aria-hidden="true">R</div>
-      <h1 class="auth-title">Create your Local RAG Workspace account</h1>
-      <p class="auth-subtitle">Keep your documents and answers inside your local workspace.</p>
+      <h1 class="auth-title">Tạo tài khoản Local RAG Workspace</h1>
+      <p class="auth-subtitle">Lưu trữ và hỏi đáp tài liệu ngay trong không gian làm việc nội bộ.</p>
       {error_html}
       <form class="auth-form" method="post" action="/register">
-        <label>Email <input type="email" name="email" required></label>
+        <label>Địa chỉ email <input type="email" name="email" required></label>
         <label>Mật khẩu <input type="password" name="password" required></label>
         <button type="submit">Tạo tài khoản</button>
       </form>
-      <a class="auth-secondary-button" href="http://127.0.0.1:8101">Sign in</a>
+      <a class="auth-secondary-button" href="http://127.0.0.1:8101">Đăng nhập</a>
     </main>
   </body>
 </html>"""
