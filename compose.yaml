@@ -133,6 +133,7 @@ services:
     command: chainlit run chainlit_app.py --host 0.0.0.0 --port 8001
     environment:
       API_BASE_URL: http://api:8000
+      CHAINLIT_AUTH_SECRET: ${CHAINLIT_AUTH_SECRET:-}
       DATABASE_URL: ""
     depends_on:
       validate-env:

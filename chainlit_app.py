@@ -36,32 +36,16 @@ async def _ask_text(content: str) -> str | None:
     return str(response["output"]).strip()
 
 
-async def _authenticate() -> bool:
-    email = await _ask_text("Email đăng nhập:")
-    password = await _ask_text("Mật khẩu:")
-    if not email or not password:
-        await cl.Message(content="Đã hết thời gian đăng nhập. Hãy tải lại trang để thử lại.").send()
-        return False
-
-    api = _api()
+@cl.password_auth_callback
+async def authenticate_user(email: str, password: str) -> cl.User | None:
+    normalized_email = email.strip().lower()
+    if not normalized_email or not password:
+        return None
     try:
-        token = await api.login(email, password)
-    except ApiError as exc:
-        create = await _ask_text(
-            f"Không đăng nhập được ({exc}). Gõ CREATE để tạo tài khoản mới bằng email này, hoặc bỏ trống để dừng:"
-        )
-        if create != "CREATE":
-            return False
-        try:
-            await api.register(email, password)
-            token = await api.login(email, password)
-        except ApiError as register_error:
-            await cl.Message(content=f"Không thể tạo tài khoản: {register_error}").send()
-            return False
-
-    cl.user_session.set("token", token)
-    cl.user_session.set("email", email)
-    return True
+        token = await _api().login(normalized_email, password)
+    except ApiError:
+        return None
+    return cl.User(identifier=normalized_email, display_name=normalized_email, metadata={"access_token": token})
 
 
 async def _show_workspace_actions() -> None:
@@ -80,6 +64,7 @@ async def _show_workspace_actions() -> None:
         cl.Action(name="show_csv_analysis", label="Phân tích CSV", payload={}),
         cl.Action(name="set_summary", label="Chế độ tóm tắt", payload={}),
         cl.Action(name="set_rag", label="Hỏi tài liệu", payload={}),
+        cl.Action(name="show_account", label="Account", payload={}),
     ]
     for workspace in workspaces:
         actions.insert(
@@ -189,12 +174,16 @@ async def _show_csv_analysis_actions() -> None:
 
 @cl.on_chat_start
 async def start() -> None:
+    user = cl.user_session.get("user")
+    token = user.metadata.get("access_token") if user else None
+    if not token:
+        await cl.Message(content="Phiên đăng nhập không hợp lệ. Hãy đăng nhập lại.").send()
+        return
+    cl.user_session.set("token", token)
+    cl.user_session.set("email", user.identifier)
     cl.user_session.set("route", "document_rag")
-    if await _authenticate():
-        await cl.Message(
-            content="Đăng nhập thành công. Chọn workspace, sau đó tải tài liệu bằng biểu tượng kẹp giấy hoặc gửi câu hỏi."
-        ).send()
-        await _show_workspace_actions()
+    await cl.Message(content="Đăng nhập thành công. Chọn workspace, sau đó tải tài liệu hoặc gửi câu hỏi.").send()
+    await _show_workspace_actions()
 
 
 @cl.action_callback("select_workspace")
@@ -228,6 +217,13 @@ async def show_documents(_: cl.Action) -> None:
 @cl.action_callback("show_csv_analysis")
 async def show_csv_analysis(_: cl.Action) -> None:
     await _show_csv_analysis_actions()
+
+
+@cl.action_callback("show_account")
+async def show_account(_: cl.Action) -> None:
+    await cl.Message(
+        content=f"Tài khoản hiện tại: **{_session('email')}**. Dùng menu người dùng của Chainlit để Đăng xuất."
+    ).send()
 
 
 @cl.action_callback("select_csv_analysis")
