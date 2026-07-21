@@ -11,5 +11,7 @@ __pycache__/
 build/
 .chainlit/
 .files/
+frontend/node_modules/
+frontend/dist/
 chainlit.md
 data/
