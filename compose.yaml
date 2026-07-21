@@ -41,9 +41,11 @@ services:
         condition: service_completed_successfully
 
   migrate:
-    image: python:3.11-slim
+    build:
+      context: .
+      dockerfile: worker/Dockerfile
     working_dir: /app
-    command: sh -c "pip install --no-cache-dir . && alembic upgrade head"
+    command: alembic upgrade head
     environment:
       DATABASE_URL: ${DATABASE_URL:-}
       JWT_SECRET: ${JWT_SECRET:-}
@@ -56,10 +58,11 @@ services:
       - .:/app
 
   api:
-    image: python:3.11-slim
+    build:
+      context: .
+      dockerfile: worker/Dockerfile
     working_dir: /app
-    command: >-
-      sh -c "pip install --no-cache-dir . && uvicorn app.api.main:app --host 0.0.0.0 --port 8000"
+    command: uvicorn app.api.main:app --host 0.0.0.0 --port 8000
     environment:
       DATABASE_URL: ${DATABASE_URL:-}
       JWT_SECRET: ${JWT_SECRET:-}
@@ -123,9 +126,11 @@ services:
       - .:/app
 
   chainlit:
-    image: python:3.11-slim
+    build:
+      context: .
+      dockerfile: worker/Dockerfile
     working_dir: /app
-    command: sh -c "pip install --no-cache-dir . && chainlit run chainlit_app.py --host 0.0.0.0 --port 8001"
+    command: chainlit run chainlit_app.py --host 0.0.0.0 --port 8001
     environment:
       API_BASE_URL: http://api:8000
       DATABASE_URL: ""
