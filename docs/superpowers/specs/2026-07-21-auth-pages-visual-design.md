@@ -8,7 +8,7 @@ Apply a calm, minimal, ChatGPT-inspired visual system to the local Sign in and S
 
 - Style the Chainlit native sign-in page at port 8101 using CSS only.
 - Restyle the FastAPI registration page at port 8100 using the same visual language.
-- Provide visible, reciprocal links between Sign in and Sign up.
+- Provide visible, reciprocal Sign in and Sign up buttons between the pages.
 - Do not alter account APIs, JWTs, authentication callbacks, or chat UI.
 
 ## Layout
@@ -19,7 +19,7 @@ Both pages use a light, off-white canvas and a centered auth card. The card cont
 2. `Welcome to Local RAG Workspace` heading.
 3. One short sentence describing the local document workspace.
 4. The existing email/password form and primary green action button.
-5. A bottom link: `Don't have an account? Sign up` on sign-in, and `Already have an account? Sign in` on sign-up.
+5. A secondary bottom button: `Sign up` on sign-in, and `Sign in` on sign-up.
 
 The page remains usable on narrow screens: card width is capped at 400px and horizontal padding reduces on mobile.
 
@@ -27,10 +27,10 @@ The page remains usable on narrow screens: card width is capped at 400px and hor
 
 ### Chainlit sign-in presentation
 
-- Configure Chainlit to load a local `public/auth.css` stylesheet.
-- Use CSS selectors only; no JavaScript and no replacement login screen.
+- Configure Chainlit to load local `public/auth.css` and `public/auth-links.js` assets.
+- The small local script adds one semantic Sign up anchor after Chainlit's native Sign In form. It does not read fields, credentials, tokens, or make network requests.
 - Hide no native fields or buttons. CSS may adjust spacing, typography, card borders, and primary-button colors.
-- Keep the existing login guidance to `http://127.0.0.1:8100/register` in the visible title/translation.
+- Replace the raw registration URL in the visible title/translation with concise login copy; the button owns navigation to registration.
 
 ### FastAPI sign-up presentation
 
@@ -51,7 +51,7 @@ The page remains usable on narrow screens: card width is capped at 400px and hor
 - Existing registration errors remain inside the card above the form and use an accessible status region.
 - Inputs retain native labels, `autocomplete` values, focus outlines, and password masking.
 - Color is never the only error signal; error copy remains visible.
-- The visual CSS must not expose credentials or change API error behavior.
+- The visual CSS and local navigation script must not expose credentials or change API error behavior.
 
 ## Verification
 
