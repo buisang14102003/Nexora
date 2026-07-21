@@ -14,23 +14,27 @@ router = APIRouter(tags=["account-page"])
 
 
 def _registration_html(error: str | None = None) -> str:
-    error_html = f'<p role="alert">{error}</p>' if error else ""
+    error_html = f'<p class="auth-error" role="alert">{error}</p>' if error else ""
     return f"""<!doctype html>
 <html lang="vi">
   <head>
     <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Tạo tài khoản</title>
+    <link rel="stylesheet" href="http://127.0.0.1:8101/public/auth.css">
   </head>
-  <body>
-    <main>
-      <h1>Tạo tài khoản</h1>
+  <body class="auth-page">
+    <main class="auth-card">
+      <div class="auth-mark" aria-hidden="true">R</div>
+      <h1 class="auth-title">Create your Local RAG Workspace account</h1>
+      <p class="auth-subtitle">Keep your documents and answers inside your local workspace.</p>
       {error_html}
-      <form method="post" action="/register">
+      <form class="auth-form" method="post" action="/register">
         <label>Email <input type="email" name="email" required></label>
         <label>Mật khẩu <input type="password" name="password" required></label>
         <button type="submit">Tạo tài khoản</button>
       </form>
-      <p>Đã có tài khoản? <a href="http://127.0.0.1:8101">Đăng nhập</a></p>
+      <p class="auth-link">Already have an account? <a href="http://127.0.0.1:8101">Sign in</a></p>
     </main>
   </body>
 </html>"""

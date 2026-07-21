@@ -1,0 +1,188 @@
+:root {
+  color: #202123;
+  background: #f7f7f8;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+.auth-page {
+  align-items: center;
+  background: #f7f7f8;
+  box-sizing: border-box;
+  display: flex;
+  justify-content: center;
+  margin: 0;
+  min-height: 100vh;
+  padding: 2rem;
+}
+
+.auth-card {
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 0.75rem;
+  box-shadow: 0 10px 25px rgb(32 33 35 / 8%);
+  box-sizing: border-box;
+  max-width: 28rem;
+  padding: 2.5rem;
+  width: 100%;
+}
+
+.auth-mark {
+  align-items: center;
+  background: #10a37f;
+  border-radius: 0.5rem;
+  color: #fff;
+  display: flex;
+  font-size: 1.25rem;
+  font-weight: 700;
+  height: 2.5rem;
+  justify-content: center;
+  margin-bottom: 1.5rem;
+  width: 2.5rem;
+}
+
+.auth-title {
+  color: #202123;
+  font-size: 1.5rem;
+  line-height: 1.3;
+  margin: 0;
+}
+
+.auth-subtitle,
+.auth-link {
+  color: #6b7280;
+  line-height: 1.5;
+}
+
+.auth-subtitle {
+  margin: 0.75rem 0 1.5rem;
+}
+
+.auth-error {
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 0.375rem;
+  color: #b91c1c;
+  margin: 0 0 1rem;
+  padding: 0.75rem;
+}
+
+.auth-form {
+  display: grid;
+  gap: 1rem;
+}
+
+.auth-form label {
+  color: #202123;
+  display: grid;
+  font-weight: 600;
+  gap: 0.5rem;
+}
+
+.auth-form input,
+.auth-form button {
+  border-radius: 0.375rem;
+  box-sizing: border-box;
+  font: inherit;
+  min-height: 2.75rem;
+  width: 100%;
+}
+
+.auth-form input {
+  border: 1px solid #d1d5db;
+  padding: 0 0.75rem;
+}
+
+.auth-form button {
+  background: #10a37f;
+  border: 1px solid #10a37f;
+  color: #fff;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.auth-form button:hover {
+  background: #0d8c6c;
+  border-color: #0d8c6c;
+}
+
+.auth-page a {
+  color: #0d8c6c;
+  font-weight: 600;
+}
+
+.auth-page :focus-visible,
+#root > .grid.min-h-svh :focus-visible {
+  outline: 3px solid rgb(16 163 127 / 45%);
+  outline-offset: 2px;
+}
+
+.auth-link {
+  margin: 1.5rem 0 0;
+}
+
+#root > .grid.min-h-svh {
+  align-items: center;
+  background: #f7f7f8;
+  box-sizing: border-box;
+  display: flex;
+  justify-content: center;
+  min-height: 100vh;
+  padding: 2rem;
+}
+
+#root > .grid.min-h-svh > div:first-child {
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 0.75rem;
+  box-shadow: 0 10px 25px rgb(32 33 35 / 8%);
+  box-sizing: border-box;
+  color: #202123;
+  max-width: 28rem;
+  padding: 2.5rem;
+  width: 100%;
+}
+
+#root > .grid.min-h-svh > div:last-of-type {
+  display: none;
+}
+
+#root > .grid.min-h-svh .flex.flex-1.items-center.justify-center {
+  align-items: stretch;
+}
+
+#root > .grid.min-h-svh .max-w-xs {
+  max-width: none;
+  width: 100%;
+}
+
+#root > .grid.min-h-svh .logo {
+  display: none;
+}
+
+#root > .grid.min-h-svh input {
+  background: #fff;
+  border-color: #d1d5db;
+  color: #202123;
+}
+
+#root > .grid.min-h-svh button[type="button"] {
+  color: #202123;
+}
+
+#root > .grid.min-h-svh button[type="submit"] {
+  background: #10a37f;
+  border-color: #10a37f;
+  color: #fff;
+}
+
+@media (max-width: 480px) {
+  .auth-page,
+  #root > .grid.min-h-svh {
+    padding: 1rem;
+  }
+
+  .auth-card,
+  #root > .grid.min-h-svh > div:first-child {
+    padding: 1.5rem;
+  }
+}
