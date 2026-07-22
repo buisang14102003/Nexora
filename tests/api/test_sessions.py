@@ -113,3 +113,25 @@ def test_chat_rejects_a_session_from_another_workspace(client, register_and_logi
     )
 
     assert response.status_code == 404
+
+
+def test_archived_workspace_cannot_access_sessions(client, register_and_login) -> None:
+    token = register_and_login("owner@example.test")
+    workspace_id = _workspace(client, token)
+    session_id = client.post(
+        f"/workspaces/{workspace_id}/chat-sessions", headers=_headers(token)
+    ).json()["id"]
+    assert client.post(
+        f"/workspaces/{workspace_id}/archive", headers=_headers(token)
+    ).status_code == 200
+
+    listed = client.get(
+        f"/workspaces/{workspace_id}/chat-sessions", headers=_headers(token)
+    )
+    selected = client.get(
+        f"/workspaces/{workspace_id}/chat-sessions/{session_id}",
+        headers=_headers(token),
+    )
+
+    assert listed.status_code == 404
+    assert selected.status_code == 404

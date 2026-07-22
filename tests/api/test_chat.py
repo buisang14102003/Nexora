@@ -92,3 +92,32 @@ def test_non_member_cannot_chat_in_another_workspace(client, register_and_login)
     )
 
     assert response.status_code == 404
+
+
+def test_archived_workspace_cannot_chat(client, register_and_login, monkeypatch) -> None:
+    from app.api.routers import chat
+
+    token = register_and_login("owner@example.test")
+    workspace_id = _workspace(client, token)
+    session_id = client.post(
+        f"/workspaces/{workspace_id}/chat-sessions", headers=_headers(token)
+    ).json()["id"]
+    assert client.post(
+        f"/workspaces/{workspace_id}/archive", headers=_headers(token)
+    ).status_code == 200
+    monkeypatch.setattr(
+        chat,
+        "run_chat_stream",
+        lambda **_: (_ for _ in ()).throw(
+            AssertionError("archived chat must stop before retrieval")
+        ),
+    )
+
+    response = client.post(
+        f"/workspaces/{workspace_id}/chat",
+        headers=_headers(token),
+        json={"question": "Private question", "session_id": session_id},
+    )
+
+    assert response.status_code == 404
+    assert response.json() == {"detail": "Workspace not found"}

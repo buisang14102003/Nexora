@@ -105,6 +105,21 @@ def test_other_workspace_member_cannot_list_or_upload_documents(
     assert upload_response.status_code == 404
 
 
+def test_archived_workspace_cannot_list_documents(client, register_and_login) -> None:
+    token = register_and_login("owner@example.test")
+    workspace_id = _create_workspace(client, token)
+    assert client.post(
+        f"/workspaces/{workspace_id}/archive", headers=_headers(token)
+    ).status_code == 200
+
+    response = client.get(
+        f"/workspaces/{workspace_id}/documents", headers=_headers(token)
+    )
+
+    assert response.status_code == 404
+    assert response.json() == {"detail": "Workspace not found"}
+
+
 def test_unsupported_upload_is_rejected_before_storage(
     client: TestClient, register_and_login, monkeypatch
 ) -> None:

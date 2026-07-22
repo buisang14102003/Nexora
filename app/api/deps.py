@@ -9,7 +9,7 @@ from jwt.exceptions import InvalidTokenError
 from sqlalchemy.orm import Session
 
 from app.core.config import get_settings
-from app.db.models import Membership, User
+from app.db.models import Membership, User, Workspace
 
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
@@ -55,6 +55,7 @@ def require_workspace_membership(
     membership = session.get(
         Membership, {"user_id": user.id, "workspace_id": workspace_id}
     )
-    if membership is None:
+    workspace = session.get(Workspace, workspace_id)
+    if membership is None or workspace is None or workspace.archived_at is not None:
         raise HTTPException(status_code=404, detail="Workspace not found")
     return membership
