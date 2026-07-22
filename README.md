@@ -135,3 +135,8 @@ tests/      Backend and integration tests
 scripts/    Setup and environment-validation utilities
 compose.yaml Local service stack
 ```
+
+## UI 
+<img width="1915" height="987" alt="image" src="https://github.com/user-attachments/assets/21e1ca70-760e-41d3-8ea9-0e960450370f" />
+<img width="1915" height="987" alt="image" src="https://github.com/user-attachments/assets/86869ced-1182-4c77-8615-a6526887b18b" />
+
