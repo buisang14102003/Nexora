@@ -1,4 +1,9 @@
+from datetime import UTC, datetime
+from uuid import UUID
+
 from fastapi.testclient import TestClient
+
+from app.db.models import Workspace
 
 
 def _headers(token: str) -> dict[str, str]:
@@ -80,3 +85,26 @@ def test_user_cannot_get_another_users_workspace(
 
     assert response.status_code == 404
     assert response.json() == {"detail": "Workspace not found"}
+
+
+def test_workspace_persists_pin_and_archive_state(client, register_and_login) -> None:
+    from app.db.session import SessionLocal
+
+    token = register_and_login("owner@example.test")
+    created = client.post(
+        "/workspaces", headers=_headers(token), json={"name": "Research"}
+    ).json()
+
+    with SessionLocal.begin() as session:
+        workspace = session.get(Workspace, UUID(created["id"]))
+        assert workspace is not None
+        assert workspace.is_pinned is False
+        assert workspace.archived_at is None
+        workspace.is_pinned = True
+        workspace.archived_at = datetime.now(UTC)
+
+    with SessionLocal() as session:
+        persisted = session.get(Workspace, UUID(created["id"]))
+        assert persisted is not None
+        assert persisted.is_pinned is True
+        assert persisted.archived_at is not None
