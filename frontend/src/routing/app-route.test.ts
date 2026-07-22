@@ -50,6 +50,13 @@ describe("app routing", () => {
     expect(browser.history.pushState).toHaveBeenCalledWith(null, "", "/workspaces");
   });
 
+  it("does not push when a stale rendered route differs from the current pathname", () => {
+    const browser = createBrowser("/workspaces");
+
+    expect(navigateAppRoute(browser, "/chat", "/workspaces")).toBe(false);
+    expect(browser.history.pushState).not.toHaveBeenCalled();
+  });
+
   it("reports normalized routes on popstate and unsubscribes", () => {
     const browser = createBrowser("/workspaces");
     const listener = vi.fn();
@@ -59,5 +66,17 @@ describe("app routing", () => {
     unsubscribe();
     browser.emitPopState();
     expect(listener).toHaveBeenCalledTimes(1);
+  });
+
+  it("replaces unsupported popstate paths with /chat", () => {
+    const browser = createBrowser("/unknown");
+    const listener = vi.fn();
+    subscribeToAppRoute(browser, listener);
+
+    browser.emitPopState();
+
+    expect(browser.history.replaceState).toHaveBeenCalledWith(null, "", "/chat");
+    expect(browser.getPathname()).toBe("/chat");
+    expect(listener).toHaveBeenCalledWith("/chat");
   });
 });

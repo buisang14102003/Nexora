@@ -32,10 +32,10 @@ export function initializeAppRoute(browser?: RouteBrowser): AppRoute {
 
 export function navigateAppRoute(
   browser: RouteBrowser,
-  current: AppRoute,
+  _current: AppRoute,
   target: AppRoute,
 ): boolean {
-  if (current === target) return false;
+  if (normalizeAppRoute(getPathname(browser)) === target) return false;
   browser.history.pushState(null, "", target);
   return true;
 }
@@ -44,7 +44,7 @@ export function subscribeToAppRoute(
   browser: RouteBrowser,
   listener: (route: AppRoute) => void,
 ): () => void {
-  const onPopState = () => listener(normalizeAppRoute(getPathname(browser)));
+  const onPopState = () => listener(initializeAppRoute(browser));
   browser.addEventListener("popstate", onPopState);
   return () => browser.removeEventListener("popstate", onPopState);
 }
