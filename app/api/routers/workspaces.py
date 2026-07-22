@@ -10,7 +10,7 @@ from app.core.errors import ForbiddenError
 from app.core.security import require_role
 from app.db.models import Membership, MembershipRole, User, Workspace
 from app.schemas.workspace import MembershipCreate, MembershipResponse, WorkspaceCreate, WorkspaceResponse
-from app.services.workspaces import create_workspace
+from app.services.workspaces import WorkspaceNameConflictError, create_workspace
 
 
 router = APIRouter(prefix="/workspaces", tags=["workspaces"])
@@ -32,7 +32,10 @@ def create(
     user: Annotated[User, Depends(get_current_user)],
     session: Annotated[Session, Depends(get_session)],
 ) -> Workspace:
-    return create_workspace(session, user.id, workspace.name)
+    try:
+        return create_workspace(session, user.id, workspace.name)
+    except WorkspaceNameConflictError as exc:
+        raise HTTPException(status_code=409, detail="Workspace name already exists") from exc
 
 
 @router.get("", response_model=list[WorkspaceResponse])

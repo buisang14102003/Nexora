@@ -21,6 +21,23 @@ def test_user_can_create_and_list_their_workspace(
     assert list_response.json() == [create_response.json()]
 
 
+def test_duplicate_normalized_workspace_name_returns_conflict(
+    client: TestClient, register_and_login
+) -> None:
+    token = register_and_login("owner@example.test")
+
+    first = client.post(
+        "/workspaces", headers=_headers(token), json={"name": "Engineering Team"}
+    )
+    duplicate = client.post(
+        "/workspaces", headers=_headers(token), json={"name": " engineering   team "}
+    )
+
+    assert first.status_code == 201
+    assert duplicate.status_code == 409
+    assert duplicate.json() == {"detail": "Workspace name already exists"}
+
+
 def test_member_cannot_add_workspace_members(
     client: TestClient, register_and_login
 ) -> None:

@@ -40,6 +40,21 @@ def test_login_returns_bearer_token_for_valid_credentials(client: TestClient) ->
     assert response.json()["access_token"]
 
 
+def test_registration_and_login_normalize_email(client: TestClient) -> None:
+    registration = client.post(
+        "/auth/register",
+        json={"email": "  User@Example.Test  ", "password": "correct horse battery staple"},
+    )
+    login = client.post(
+        "/auth/login",
+        json={"email": "USER@EXAMPLE.TEST", "password": "correct horse battery staple"},
+    )
+
+    assert registration.status_code == 201
+    assert registration.json()["email"] == "user@example.test"
+    assert login.status_code == 200
+
+
 def test_token_without_expiry_is_rejected(client: TestClient) -> None:
     client.post(
         "/auth/register",

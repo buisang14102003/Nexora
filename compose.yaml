@@ -16,6 +16,11 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-}
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-rag} -d ${POSTGRES_DB:-rag}"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
     depends_on:
       validate-env:
         condition: service_completed_successfully
@@ -53,7 +58,7 @@ services:
       validate-env:
         condition: service_completed_successfully
       postgres:
-        condition: service_started
+        condition: service_healthy
     volumes:
       - .:/app
 
@@ -70,8 +75,8 @@ services:
       MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-}
       OLLAMA_BASE_URL: http://host.docker.internal:11434
       CHAT_MODEL: ${CHAT_MODEL:-deepseek-r1:7b}
-      EMBEDDING_MODEL: ${EMBEDDING_MODEL:-BAAI/bge-m3}
-      EMBEDDING_BASE_URL: ${EMBEDDING_BASE_URL:-http://bgem3.sbuidev.com}
+      EMBEDDING_MODEL: ${EMBEDDING_MODEL:-qwen3-embedding:0.6b}
+      EMBEDDING_BASE_URL: ${EMBEDDING_BASE_URL:-http://host.docker.internal:11434}
     extra_hosts:
       - host.docker.internal:host-gateway
     depends_on:
@@ -103,8 +108,8 @@ services:
       MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-}
       OLLAMA_BASE_URL: http://host.docker.internal:11434
       CHAT_MODEL: ${CHAT_MODEL:-deepseek-r1:7b}
-      EMBEDDING_MODEL: ${EMBEDDING_MODEL:-BAAI/bge-m3}
-      EMBEDDING_BASE_URL: ${EMBEDDING_BASE_URL:-http://bgem3.sbuidev.com}
+      EMBEDDING_MODEL: ${EMBEDDING_MODEL:-qwen3-embedding:0.6b}
+      EMBEDDING_BASE_URL: ${EMBEDDING_BASE_URL:-http://host.docker.internal:11434}
       EMBEDDING_TOKENIZER: ${EMBEDDING_TOKENIZER:-local-byte}
       EMBEDDING_MAX_TOKENS: ${EMBEDDING_MAX_TOKENS:-32768}
       CHUNK_SIZE_TOKENS: ${CHUNK_SIZE_TOKENS:-400}

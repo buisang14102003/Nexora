@@ -17,3 +17,10 @@ def test_settings_rejects_chunk_size_above_embedding_limit() -> None:
             chunk_size_tokens=33,
             embedding_max_tokens=32,
         )
+
+
+def test_settings_default_to_local_ollama_embeddings() -> None:
+    settings = Settings(database_url="sqlite://", jwt_secret="test-secret")
+
+    assert settings.embedding_model == "qwen3-embedding:0.6b"
+    assert settings.embedding_base_url == "http://host.docker.internal:11434"

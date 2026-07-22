@@ -1,6 +1,6 @@
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 
 from app.core.config import Settings, get_settings
@@ -10,10 +10,24 @@ from app.services.parsers import DocumentExtractionError, extract_document
 from app.services.vector_store import QdrantVectorStore, VectorStoreError
 
 
-def claim_next_job(session: Session) -> IngestionJob | None:
+PROCESSING_JOB_TIMEOUT = timedelta(minutes=15)
+
+
+def claim_next_job(
+    session: Session, *, now: datetime | None = None
+) -> IngestionJob | None:
+    claimed_at = now or datetime.now(timezone.utc)
     job = session.scalar(
         select(IngestionJob)
-        .where(IngestionJob.status == IngestionJobStatus.QUEUED)
+        .where(
+            or_(
+                IngestionJob.status == IngestionJobStatus.QUEUED,
+                (
+                    (IngestionJob.status == IngestionJobStatus.PROCESSING)
+                    & (IngestionJob.claimed_at <= claimed_at - PROCESSING_JOB_TIMEOUT)
+                ),
+            )
+        )
         .order_by(IngestionJob.created_at, IngestionJob.id)
         .with_for_update(skip_locked=True)
         .limit(1)
@@ -23,7 +37,7 @@ def claim_next_job(session: Session) -> IngestionJob | None:
 
     job.status = IngestionJobStatus.PROCESSING
     job.attempts += 1
-    job.claimed_at = datetime.now(timezone.utc)
+    job.claimed_at = claimed_at
     document = session.get(Document, job.document_id)
     if document is None:
         raise RuntimeError("Ingestion job document does not exist")

@@ -81,4 +81,8 @@ def answer(state: GraphState, generator: AnswerGenerator) -> GraphState:
     )
     response = generator(answer_prompt(state["question"], evidence, state.get("route", "document_rag")))
     answer_text, cited_chunk_ids = parse_model_response(response)
+    if answer_text == _INSUFFICIENT_EVIDENCE and _CITATION_START not in response:
+        fallback_answer = response.strip()
+        if fallback_answer and fallback_answer != _INSUFFICIENT_EVIDENCE:
+            return {"answer": fallback_answer, "cited_chunk_ids": [chunks[0].id]}
     return {"answer": answer_text, "cited_chunk_ids": cited_chunk_ids}

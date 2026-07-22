@@ -76,6 +76,17 @@ def test_graph_returns_insufficient_evidence_when_answer_has_no_valid_citation()
     assert result.citations == []
 
 
+def test_graph_uses_retrieved_source_when_local_model_omits_citation_tag() -> None:
+    result = run_graph_for_test(
+        question="What is the refund policy?",
+        retrieved_chunks=[_page_3_chunk()],
+        generated_response="Refunds are available within 30 days.",
+    )
+
+    assert result.answer == "Refunds are available within 30 days."
+    assert [citation.chunk_id for citation in result.citations] == [CHUNK_ID]
+
+
 def test_graph_rejects_citation_outside_retrieved_evidence() -> None:
     result = run_graph_for_test(
         question="What is the refund policy?",
