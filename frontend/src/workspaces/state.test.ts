@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { Workspace } from "../api/client";
-import { filterWorkspaces, nextWorkspaceAfterArchive, pinnedWorkspaces } from "./state";
+import { filterWorkspaces, nextWorkspaceAfterArchive, orderActiveWorkspaces, pinnedWorkspaces } from "./state";
 
 const workspaces: Workspace[] = [
   {
@@ -36,5 +36,17 @@ describe("workspace state", () => {
     expect(nextWorkspaceAfterArchive(workspaces, "1", "1")).toBe("2");
     expect(nextWorkspaceAfterArchive([workspaces[0]], "1", "1")).toBeNull();
     expect(nextWorkspaceAfterArchive(workspaces, "2", "1")).toBe("2");
+  });
+
+  it("orders active workspaces by pin, updated time, and id", () => {
+    const unordered: Workspace[] = [
+      { ...workspaces[1], id: "b", updated_at: "2026-07-22T12:00:00Z" },
+      { ...workspaces[0], id: "d", updated_at: "2026-07-21T12:00:00Z" },
+      { ...workspaces[1], id: "a", updated_at: "2026-07-22T12:00:00Z" },
+      { ...workspaces[0], id: "c", updated_at: "2026-07-23T12:00:00Z" },
+    ];
+
+    expect(orderActiveWorkspaces(unordered).map(({ id }) => id)).toEqual(["c", "d", "a", "b"]);
+    expect(unordered.map(({ id }) => id)).toEqual(["b", "d", "a", "c"]);
   });
 });

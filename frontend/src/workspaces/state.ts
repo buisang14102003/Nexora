@@ -10,6 +10,15 @@ export function pinnedWorkspaces(workspaces: Workspace[]): Workspace[] {
   return workspaces.filter(({ archived_at, is_pinned }) => archived_at === null && is_pinned);
 }
 
+export function orderActiveWorkspaces(workspaces: Workspace[]): Workspace[] {
+  return [...workspaces].sort((left, right) => {
+    if (left.is_pinned !== right.is_pinned) return left.is_pinned ? -1 : 1;
+    if (left.updated_at !== right.updated_at) return left.updated_at > right.updated_at ? -1 : 1;
+    if (left.id === right.id) return 0;
+    return left.id < right.id ? -1 : 1;
+  });
+}
+
 export function nextWorkspaceAfterArchive(
   activeWorkspaces: Workspace[],
   activeWorkspaceId: string | null,

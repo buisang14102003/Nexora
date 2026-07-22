@@ -7,7 +7,7 @@ import { ChatView } from "./components/ChatView";
 import { KnowledgeView } from "./components/KnowledgeView";
 import { Sidebar } from "./components/Sidebar";
 import { WorkspaceManager } from "./components/WorkspaceManager";
-import { nextWorkspaceAfterArchive, pinnedWorkspaces } from "./workspaces/state";
+import { nextWorkspaceAfterArchive, orderActiveWorkspaces, pinnedWorkspaces } from "./workspaces/state";
 
 type ContentMode = "workspace" | "manager";
 
@@ -40,8 +40,9 @@ export default function App() {
     if (!api) return;
     try {
       const nextWorkspaces = await api.listWorkspaces();
-      setWorkspaces(nextWorkspaces);
-      const nextWorkspaceId = preferredId ?? (workspaceId && nextWorkspaces.some((workspace) => workspace.id === workspaceId) ? workspaceId : nextWorkspaces[0]?.id ?? null);
+      const orderedWorkspaces = orderActiveWorkspaces(nextWorkspaces);
+      setWorkspaces(orderedWorkspaces);
+      const nextWorkspaceId = preferredId ?? (workspaceId && orderedWorkspaces.some((workspace) => workspace.id === workspaceId) ? workspaceId : orderedWorkspaces[0]?.id ?? null);
       setWorkspaceId(nextWorkspaceId);
     } catch (reason) {
       handleApiError(reason);
@@ -116,7 +117,7 @@ export default function App() {
   async function createWorkspace(name: string) {
     if (!api) return;
     const workspace = await api.createWorkspace(name);
-    setWorkspaces((current) => [workspace, ...current]);
+    setWorkspaces((current) => orderActiveWorkspaces([workspace, ...current]));
     setWorkspaceId(workspace.id);
     setContentMode("workspace");
   }
@@ -142,13 +143,13 @@ export default function App() {
   async function updateWorkspace(targetWorkspaceId: string, update: WorkspaceUpdate) {
     if (!api) return;
     const updated = await api.updateWorkspace(targetWorkspaceId, update);
-    setWorkspaces((current) => current.map((workspace) => workspace.id === updated.id ? updated : workspace));
+    setWorkspaces((current) => orderActiveWorkspaces(current.map((workspace) => workspace.id === updated.id ? updated : workspace)));
   }
 
   async function archiveWorkspace(targetWorkspaceId: string) {
     if (!api) return;
     const archived = await api.archiveWorkspace(targetWorkspaceId);
-    const remaining = workspaces.filter((workspace) => workspace.id !== targetWorkspaceId);
+    const remaining = orderActiveWorkspaces(workspaces.filter((workspace) => workspace.id !== targetWorkspaceId));
     const nextWorkspaceId = nextWorkspaceAfterArchive(workspaces, workspaceId, targetWorkspaceId);
     setWorkspaces(remaining);
     setArchivedWorkspaces((current) => [archived, ...current.filter((workspace) => workspace.id !== archived.id)]);
@@ -168,7 +169,7 @@ export default function App() {
     if (!api) return;
     const restored = await api.restoreWorkspace(targetWorkspaceId);
     setArchivedWorkspaces((current) => current.filter((workspace) => workspace.id !== targetWorkspaceId));
-    setWorkspaces((current) => [restored, ...current]);
+    setWorkspaces((current) => orderActiveWorkspaces([restored, ...current]));
   }
 
   async function uploadDocuments(files: FileList) {
