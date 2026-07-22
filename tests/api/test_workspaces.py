@@ -108,3 +108,93 @@ def test_workspace_persists_pin_and_archive_state(client, register_and_login) ->
         assert persisted is not None
         assert persisted.is_pinned is True
         assert persisted.archived_at is not None
+
+
+def test_workspace_management_flow(client, register_and_login) -> None:
+    token = register_and_login("owner@example.test")
+    first = client.post(
+        "/workspaces", headers=_headers(token), json={"name": "Engineering"}
+    ).json()
+    second = client.post(
+        "/workspaces", headers=_headers(token), json={"name": "Support"}
+    ).json()
+
+    renamed = client.patch(
+        f"/workspaces/{first['id']}",
+        headers=_headers(token),
+        json={"name": "Product research", "is_pinned": True},
+    )
+    assert renamed.status_code == 200
+    assert renamed.json()["name"] == "Product research"
+    assert renamed.json()["is_pinned"] is True
+    assert renamed.json()["updated_at"]
+
+    active = client.get("/workspaces?status=active", headers=_headers(token))
+    assert active.status_code == 200
+    assert active.json()[0]["id"] == first["id"]
+
+    archived = client.post(
+        f"/workspaces/{first['id']}/archive", headers=_headers(token)
+    )
+    assert archived.status_code == 200
+    assert archived.json()["archived_at"]
+    assert archived.json()["is_pinned"] is False
+    assert [
+        item["id"]
+        for item in client.get(
+            "/workspaces?status=active", headers=_headers(token)
+        ).json()
+    ] == [second["id"]]
+    assert [
+        item["id"]
+        for item in client.get(
+            "/workspaces?status=archived", headers=_headers(token)
+        ).json()
+    ] == [first["id"]]
+
+    restored = client.post(
+        f"/workspaces/{first['id']}/restore", headers=_headers(token)
+    )
+    assert restored.status_code == 200
+    assert restored.json()["archived_at"] is None
+    assert restored.json()["is_pinned"] is False
+
+
+def test_archived_workspace_rejects_update(client, register_and_login) -> None:
+    token = register_and_login("owner@example.test")
+    workspace = client.post(
+        "/workspaces", headers=_headers(token), json={"name": "Archive me"}
+    ).json()
+    client.post(f"/workspaces/{workspace['id']}/archive", headers=_headers(token))
+
+    response = client.patch(
+        f"/workspaces/{workspace['id']}",
+        headers=_headers(token),
+        json={"name": "Hidden", "is_pinned": True},
+    )
+
+    assert response.status_code == 409
+    assert response.json() == {"detail": "Archived workspace cannot be updated"}
+
+
+def test_other_user_cannot_manage_workspace(client, register_and_login) -> None:
+    owner_token = register_and_login("owner@example.test")
+    workspace = client.post(
+        "/workspaces", headers=_headers(owner_token), json={"name": "Private"}
+    ).json()
+    other_token = register_and_login("other@example.test")
+
+    assert (
+        client.patch(
+            f"/workspaces/{workspace['id']}",
+            headers=_headers(other_token),
+            json={"is_pinned": True},
+        ).status_code
+        == 404
+    )
+    assert (
+        client.post(
+            f"/workspaces/{workspace['id']}/restore", headers=_headers(other_token)
+        ).status_code
+        == 404
+    )
