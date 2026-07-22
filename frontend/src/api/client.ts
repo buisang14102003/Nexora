@@ -1,9 +1,19 @@
 const API_BASE_URL = "http://127.0.0.1:8100";
 
+export type WorkspaceStatus = "active" | "archived";
+
 export type Workspace = {
   id: string;
   name: string;
   slug: string;
+  is_pinned: boolean;
+  archived_at: string | null;
+  updated_at: string;
+};
+
+export type WorkspaceUpdate = {
+  name?: string;
+  is_pinned?: boolean;
 };
 
 export type Citation = {
@@ -91,9 +101,19 @@ export function createApiClient(token: string, fetcher: Fetcher = fetch) {
   }
 
   return {
-    listWorkspaces: () => request<Workspace[]>("/workspaces"),
+    listWorkspaces: (status: WorkspaceStatus = "active") =>
+      request<Workspace[]>(`/workspaces?status=${status}`),
     createWorkspace: (name: string) =>
       request<Workspace>("/workspaces", { method: "POST", body: JSON.stringify({ name }) }),
+    updateWorkspace: (workspaceId: string, update: WorkspaceUpdate) =>
+      request<Workspace>(`/workspaces/${workspaceId}`, {
+        method: "PATCH",
+        body: JSON.stringify(update),
+      }),
+    archiveWorkspace: (workspaceId: string) =>
+      request<Workspace>(`/workspaces/${workspaceId}/archive`, { method: "POST" }),
+    restoreWorkspace: (workspaceId: string) =>
+      request<Workspace>(`/workspaces/${workspaceId}/restore`, { method: "POST" }),
     listDocuments: (workspaceId: string) =>
       request<WorkspaceDocument[]>(`/workspaces/${workspaceId}/documents`),
     async uploadDocument(workspaceId: string, file: File) {
