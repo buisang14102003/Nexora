@@ -137,11 +137,11 @@ html[data-theme="dark"] .workspace-picker { border-color: #484848; }
 .workspace-new-button { border: 0; border-radius: 18px; padding: 9px 17px; color: #fff; background: #202123; font-weight: 650; transition: transform .18s ease, background .18s ease; }
 .workspace-new-button:hover { background: #3b3b3e; }
 .workspace-new-button:active { transform: scale(.97); }
-.workspace-tabs { display: flex; gap: 6px; max-width: 980px; margin: 0 auto 12px; border-bottom: 1px solid #ececee; padding-bottom: 12px; }
+.workspace-tabs { display: flex; gap: 6px; width: 100%; max-width: 980px; min-width: 0; margin: 0 auto 12px; border: 0; border-bottom: 1px solid #ececee; padding: 0 0 12px; }
 .workspace-tabs button { border: 0; border-radius: 16px; padding: 8px 14px; color: #55555a; background: transparent; transition: color .18s ease, background .18s ease, transform .18s ease; }
 .workspace-tabs button:hover { color: #202123; background: #f4f4f5; }
 .workspace-tabs button:active { transform: scale(.98); }
-.workspace-tabs button[aria-selected="true"] { color: #202123; background: #ececee; font-weight: 600; }
+.workspace-tabs button[aria-pressed="true"] { color: #202123; background: #ececee; font-weight: 600; }
 .workspace-screen-error { max-width: 980px; margin: 0 auto 12px; border-radius: 9px; padding: 10px 12px; color: #9f241c; background: #fff2f0; font-size: .85rem; }
 .workspace-table { max-width: 980px; margin: 0 auto; }
 .workspace-table-heading, .workspace-row { display: grid; grid-template-columns: minmax(0, 1fr) 150px 44px; align-items: center; gap: 16px; }
@@ -196,7 +196,7 @@ html[data-theme="dark"] .workspace-new-button:hover { background: #fff; }
 html[data-theme="dark"] .workspace-tabs { border-color: #3d3d3d; }
 html[data-theme="dark"] .workspace-tabs button { color: #b8b8bc; }
 html[data-theme="dark"] .workspace-tabs button:hover { color: #f1f1f2; background: #303030; }
-html[data-theme="dark"] .workspace-tabs button[aria-selected="true"] { color: #f4f4f5; background: #383838; }
+html[data-theme="dark"] .workspace-tabs button[aria-pressed="true"] { color: #f4f4f5; background: #383838; }
 html[data-theme="dark"] .workspace-screen-error { color: #ffaaa3; background: #402724; }
 html[data-theme="dark"] .workspace-table-heading,
 html[data-theme="dark"] .workspace-modified,

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { Workspace } from "../api/client";
-import { filterWorkspaces, nextWorkspaceAfterArchive, orderActiveWorkspaces, pinnedWorkspaces } from "./state";
+import { createMutationLock, filterWorkspaces, nextWorkspaceAfterArchive, orderActiveWorkspaces, pinnedWorkspaces } from "./state";
 
 const workspaces: Workspace[] = [
   {
@@ -48,5 +48,18 @@ describe("workspace state", () => {
 
     expect(orderActiveWorkspaces(unordered).map(({ id }) => id)).toEqual(["c", "d", "a", "b"]);
     expect(unordered.map(({ id }) => id)).toEqual(["b", "d", "a", "c"]);
+  });
+
+  it("allows only one workspace mutation at a time", () => {
+    const lock = createMutationLock();
+
+    expect(lock.tryAcquire()).toBe(true);
+    expect(lock.tryAcquire()).toBe(false);
+    expect(lock.isLocked()).toBe(true);
+
+    lock.release();
+
+    expect(lock.isLocked()).toBe(false);
+    expect(lock.tryAcquire()).toBe(true);
   });
 });

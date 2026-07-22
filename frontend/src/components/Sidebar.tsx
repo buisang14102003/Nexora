@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
 
 import type { ChatSession, Workspace } from "../api/client";
+import { pinnedWorkspaces } from "../workspaces/state";
 
 type Props = {
-  pinned: Workspace[];
+  workspaces: Workspace[];
   activeWorkspaceId: string | null;
   managerActive: boolean;
   sessions: ChatSession[];
@@ -17,10 +18,14 @@ type Props = {
   onLogout: () => void;
 };
 
-export function Sidebar({ pinned, activeWorkspaceId, managerActive, sessions, activeSessionId, onOpenManager, onSelectWorkspace, onNewChat, onSelectSession, onRenameSession, onDeleteSession, onLogout }: Props) {
+export function Sidebar({ workspaces, activeWorkspaceId, managerActive, sessions, activeSessionId, onOpenManager, onSelectWorkspace, onNewChat, onSelectSession, onRenameSession, onDeleteSession, onLogout }: Props) {
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
   const [sessionMenuId, setSessionMenuId] = useState<string | null>(null);
-  const [theme, setTheme] = useState<"light" | "dark" | "system">((localStorage.getItem("theme") as "light" | "dark" | "system") || "system");
+  const [theme, setTheme] = useState<"light" | "dark" | "system">(() => {
+    if (typeof localStorage === "undefined") return "system";
+    return (localStorage.getItem("theme") as "light" | "dark" | "system") || "system";
+  });
+  const pinned = pinnedWorkspaces(workspaces);
 
   useEffect(() => {
     const dark = theme === "dark" || (theme === "system" && window.matchMedia("(prefers-color-scheme: dark)").matches);
@@ -71,9 +76,9 @@ export function Sidebar({ pinned, activeWorkspaceId, managerActive, sessions, ac
             <button className="session-title" onClick={() => void onSelectSession(session.id)}>{session.title}</button>
             <div className="session-menu-wrap">
               <button className="icon-button session-menu-trigger" aria-label={`Open actions for ${session.title}`} aria-expanded={sessionMenuId === session.id} onClick={() => setSessionMenuId((open) => open === session.id ? null : session.id)}>•••</button>
-              {sessionMenuId === session.id && <div className="session-menu" role="menu">
-                <button role="menuitem" onClick={() => { setSessionMenuId(null); void onRenameSession(session); }}>Rename</button>
-                <button className="danger" role="menuitem" onClick={() => { setSessionMenuId(null); void onDeleteSession(session); }}>Delete</button>
+              {sessionMenuId === session.id && <div className="session-menu">
+                <button onClick={() => { setSessionMenuId(null); void onRenameSession(session); }}>Rename</button>
+                <button className="danger" onClick={() => { setSessionMenuId(null); void onDeleteSession(session); }}>Delete</button>
               </div>}
             </div>
           </div>)}

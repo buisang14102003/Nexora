@@ -1,7 +1,7 @@
 import { FormEvent, SyntheticEvent, useEffect, useMemo, useRef, useState } from "react";
 
 import type { Workspace, WorkspaceStatus, WorkspaceUpdate } from "../api/client";
-import { filterWorkspaces } from "../workspaces/state";
+import { createMutationLock, filterWorkspaces } from "../workspaces/state";
 
 type Props = {
   activeWorkspaces: Workspace[];
@@ -47,6 +47,8 @@ export function WorkspaceManager({ activeWorkspaces, archivedWorkspaces, loading
   const newButtonRef = useRef<HTMLButtonElement>(null);
   const dialogOpenerRef = useRef<HTMLElement | null>(null);
   const dialogWasOpenRef = useRef(false);
+  const mutationLockRef = useRef(createMutationLock());
+  const mutationPending = pendingId !== null;
 
   const visibleWorkspaces = useMemo(
     () => filterWorkspaces(status === "active" ? activeWorkspaces : archivedWorkspaces, query),
@@ -94,12 +96,12 @@ export function WorkspaceManager({ activeWorkspaces, archivedWorkspaces, loading
     dialogOpenerRef.current = null;
     const fallback = newButtonRef.current?.isConnected
       ? newButtonRef.current
-      : managerRef.current?.querySelector<HTMLElement>(".workspace-tabs button[aria-selected=\"true\"], button.workspace-row-main:not(:disabled), .workspace-menu-trigger:not(:disabled)");
+      : managerRef.current?.querySelector<HTMLElement>(".workspace-tabs button[aria-pressed=\"true\"], button.workspace-row-main:not(:disabled), .workspace-menu-trigger:not(:disabled)");
     (opener?.isConnected ? opener : fallback)?.focus();
   }, [dialog]);
 
   function closeDialog() {
-    if (pendingId) return;
+    if (mutationPending) return;
     setDialog(null);
     setName("");
     setFormError("");
@@ -126,7 +128,7 @@ export function WorkspaceManager({ activeWorkspaces, archivedWorkspaces, loading
   }
 
   function cancelDialog(event: SyntheticEvent<HTMLDialogElement>) {
-    if (pendingId) {
+    if (mutationPending) {
       event.preventDefault();
       return;
     }
@@ -148,6 +150,7 @@ export function WorkspaceManager({ activeWorkspaces, archivedWorkspaces, loading
       return;
     }
     const targetId = dialog?.type === "rename" ? dialog.workspace.id : "create";
+    if (!mutationLockRef.current.tryAcquire()) return;
     setPendingId(targetId);
     setFormError("");
     try {
@@ -158,11 +161,13 @@ export function WorkspaceManager({ activeWorkspaces, archivedWorkspaces, loading
     } catch (reason) {
       setFormError(apiMessage(reason, `We couldn't ${dialog?.type === "rename" ? "rename" : "create"} the workspace.`));
     } finally {
+      mutationLockRef.current.release();
       setPendingId(null);
     }
   }
 
   async function runRowAction(workspace: Workspace, action: "pin" | "restore") {
+    if (!mutationLockRef.current.tryAcquire()) return;
     setMenuId(null);
     setPendingId(workspace.id);
     setFormError("");
@@ -172,12 +177,14 @@ export function WorkspaceManager({ activeWorkspaces, archivedWorkspaces, loading
     } catch (reason) {
       setFormError(apiMessage(reason, `We couldn't ${action === "pin" ? "update" : "restore"} the workspace.`));
     } finally {
+      mutationLockRef.current.release();
       setPendingId(null);
     }
   }
 
   async function confirmArchive() {
     if (dialog?.type !== "archive") return;
+    if (!mutationLockRef.current.tryAcquire()) return;
     setPendingId(dialog.workspace.id);
     setFormError("");
     try {
@@ -186,6 +193,7 @@ export function WorkspaceManager({ activeWorkspaces, archivedWorkspaces, loading
     } catch (reason) {
       setFormError(apiMessage(reason, "We couldn't archive the workspace."));
     } finally {
+      mutationLockRef.current.release();
       setPendingId(null);
     }
   }
@@ -210,17 +218,17 @@ export function WorkspaceManager({ activeWorkspaces, archivedWorkspaces, loading
         : <button className="workspace-row-main" onClick={() => onOpen(workspace.id)} disabled={pending}>{rowContent}</button>}
       <time className="workspace-modified" dateTime={workspace.updated_at}>{modifiedDate.format(new Date(workspace.updated_at))}</time>
       <div className="workspace-menu-wrap">
-        <button className="workspace-menu-trigger" aria-label={`Open actions for ${workspace.name}`} aria-expanded={menuId === workspace.id} disabled={pending} onClick={() => setMenuId((open) => open === workspace.id ? null : workspace.id)}>
+        <button className="workspace-menu-trigger" aria-label={`Open actions for ${workspace.name}`} aria-expanded={menuId === workspace.id} disabled={mutationPending} onClick={() => setMenuId((open) => open === workspace.id ? null : workspace.id)}>
           <svg aria-hidden="true" viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.5" /><circle cx="12" cy="12" r="1.5" /><circle cx="19" cy="12" r="1.5" /></svg>
         </button>
-        {menuId === workspace.id && <div className="workspace-menu" role="menu">
+        {menuId === workspace.id && <div className="workspace-menu">
           {archived
-            ? <button role="menuitem" onClick={() => void runRowAction(workspace, "restore")}>Restore</button>
+            ? <button onClick={() => void runRowAction(workspace, "restore")}>Restore</button>
             : <>
-              <button role="menuitem" onClick={() => { setMenuId(null); onOpen(workspace.id); }}>Open</button>
-              <button role="menuitem" onClick={() => void runRowAction(workspace, "pin")}>{workspace.is_pinned ? "Unpin workspace" : "Pin workspace"}</button>
-              <button role="menuitem" onClick={(event) => openNameDialog("rename", event.currentTarget, workspace)}>Rename</button>
-              <button className="danger" role="menuitem" onClick={(event) => openArchiveDialog(workspace, event.currentTarget)}>Archive</button>
+              <button onClick={() => { setMenuId(null); onOpen(workspace.id); }}>Open</button>
+              <button onClick={() => void runRowAction(workspace, "pin")}>{workspace.is_pinned ? "Unpin workspace" : "Pin workspace"}</button>
+              <button onClick={(event) => openNameDialog("rename", event.currentTarget, workspace)}>Rename</button>
+              <button className="danger" onClick={(event) => openArchiveDialog(workspace, event.currentTarget)}>Archive</button>
             </>}
         </div>}
       </div>
@@ -275,7 +283,8 @@ export function WorkspaceManager({ activeWorkspaces, archivedWorkspaces, loading
     </dialog>;
   }
 
-  const screenError = error || (!dialog ? formError : "");
+  const statusError = status === "archived" ? error : "";
+  const screenError = statusError || (!dialog ? formError : "");
 
   return <main ref={managerRef} className="workspace-manager">
     <header className="workspace-manager-header">
@@ -286,18 +295,19 @@ export function WorkspaceManager({ activeWorkspaces, archivedWorkspaces, loading
           <svg aria-hidden="true" viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6.5" /><path d="m15.5 15.5 4 4" /></svg>
           <input type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search workspaces" />
         </label>
-        <button ref={newButtonRef} className="workspace-new-button" onClick={(event) => openNameDialog("create", event.currentTarget)}>New</button>
+        <button ref={newButtonRef} className="workspace-new-button" disabled={mutationPending} onClick={(event) => openNameDialog("create", event.currentTarget)}>New</button>
       </div>
     </header>
-    <div className="workspace-tabs" role="tablist" aria-label="Workspace status">
-      <button role="tab" aria-selected={status === "active"} onClick={() => { setStatus("active"); setMenuId(null); setFormError(""); }}>Active</button>
-      <button role="tab" aria-selected={status === "archived"} onClick={() => void selectArchivedTab()}>Archived</button>
-    </div>
+    <fieldset className="workspace-tabs">
+      <legend className="sr-only">Workspace status</legend>
+      <button type="button" aria-pressed={status === "active"} onClick={() => { setStatus("active"); setMenuId(null); setFormError(""); }}>Active</button>
+      <button type="button" aria-pressed={status === "archived"} onClick={() => void selectArchivedTab()}>Archived</button>
+    </fieldset>
     {screenError && <p className="workspace-screen-error" role="alert">{screenError}</p>}
     <section className="workspace-table" aria-live="polite" aria-busy={loading}>
       <div className="workspace-table-heading"><span>Name</span><span>Modified</span><span>Actions</span></div>
       {!loading && visibleWorkspaces.map(renderWorkspaceRow)}
-      {!error && (loading || visibleWorkspaces.length === 0) && renderEmptyState()}
+      {!statusError && (loading || visibleWorkspaces.length === 0) && renderEmptyState()}
     </section>
     {renderDialog()}
   </main>;

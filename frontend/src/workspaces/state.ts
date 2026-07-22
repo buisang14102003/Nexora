@@ -1,5 +1,28 @@
 import type { Workspace } from "../api/client";
 
+export type MutationLock = {
+  tryAcquire: () => boolean;
+  release: () => void;
+  isLocked: () => boolean;
+};
+
+export function createMutationLock(): MutationLock {
+  let locked = false;
+  return {
+    tryAcquire() {
+      if (locked) return false;
+      locked = true;
+      return true;
+    },
+    release() {
+      locked = false;
+    },
+    isLocked() {
+      return locked;
+    },
+  };
+}
+
 export function filterWorkspaces(workspaces: Workspace[], query: string): Workspace[] {
   const normalized = query.trim().toLocaleLowerCase();
   if (!normalized) return workspaces;

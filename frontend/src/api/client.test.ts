@@ -74,4 +74,32 @@ describe("workspace API client", () => {
       }),
     );
   });
+
+  it("restores a workspace with a bodyless POST request", async () => {
+    const restored = {
+      id: "workspace-1",
+      name: "Research",
+      slug: "research",
+      is_pinned: false,
+      archived_at: null,
+      updated_at: "2026-07-22T10:00:00Z",
+    };
+    const fetcher = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify(restored), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      }),
+    );
+    const api = createApiClient("token-123", fetcher);
+
+    await expect(api.restoreWorkspace("workspace-1")).resolves.toEqual(restored);
+    expect(fetcher).toHaveBeenCalledWith(
+      "http://127.0.0.1:8100/workspaces/workspace-1/restore",
+      expect.objectContaining({
+        method: "POST",
+        headers: expect.objectContaining({ Authorization: "Bearer token-123" }),
+      }),
+    );
+    expect(fetcher.mock.calls[0]?.[1]).not.toHaveProperty("body");
+  });
 });

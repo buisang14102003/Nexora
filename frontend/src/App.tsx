@@ -7,7 +7,7 @@ import { ChatView } from "./components/ChatView";
 import { KnowledgeView } from "./components/KnowledgeView";
 import { Sidebar } from "./components/Sidebar";
 import { WorkspaceManager } from "./components/WorkspaceManager";
-import { nextWorkspaceAfterArchive, orderActiveWorkspaces, pinnedWorkspaces } from "./workspaces/state";
+import { nextWorkspaceAfterArchive, orderActiveWorkspaces } from "./workspaces/state";
 
 type ContentMode = "workspace" | "manager";
 
@@ -26,7 +26,6 @@ export default function App() {
   const [error, setError] = useState("");
   const [streaming, setStreaming] = useState(false);
   const api = useMemo(() => (token ? createApiClient(token) : null), [token]);
-  const pinned = useMemo(() => pinnedWorkspaces(workspaces), [workspaces]);
   const activeWorkspace = workspaces.find((workspace) => workspace.id === workspaceId) ?? null;
   const hasPendingDocuments = documents.some((document) => document.status === "queued" || document.status === "processing");
 
@@ -271,7 +270,7 @@ export default function App() {
 
   return <div className={contentMode === "manager" ? "app-shell manager-mode" : "app-shell"}>
     <Sidebar
-      pinned={pinned}
+      workspaces={workspaces}
       activeWorkspaceId={workspaceId}
       managerActive={contentMode === "manager"}
       sessions={sessions}
