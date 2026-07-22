@@ -18,7 +18,7 @@ export function AuthView({ onSubmit }: Props) {
     try {
       await onSubmit(email.trim(), password, mode);
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "Không thể xác thực.");
+      setError(reason instanceof Error ? reason.message : "We couldn't authenticate you.");
     } finally {
       setLoading(false);
     }
@@ -28,20 +28,20 @@ export function AuthView({ onSubmit }: Props) {
     <main className="auth-page">
       <form className="auth-card" onSubmit={submit}>
         <p className="eyebrow">LOCAL WORKSPACE RAG</p>
-        <h1>{mode === "signin" ? "Đăng nhập" : "Tạo tài khoản"}</h1>
-        <p className="muted">Dữ liệu và phiên làm việc của bạn chỉ chạy trên máy cục bộ.</p>
+        <h1>{mode === "signin" ? "Sign in" : "Create an account"}</h1>
+        <p className="muted">Your data and conversations stay on this machine.</p>
         <label>
           Email
           <input type="email" value={email} onChange={(event) => setEmail(event.target.value)} required autoComplete="email" />
         </label>
         <label>
-          Mật khẩu
+          Password
           <input type="password" value={password} onChange={(event) => setPassword(event.target.value)} required minLength={1} autoComplete={mode === "signin" ? "current-password" : "new-password"} />
         </label>
         {error && <p className="form-error" role="alert">{error}</p>}
-        <button className="primary-button" disabled={loading}>{loading ? "Đang xử lý…" : mode === "signin" ? "Đăng nhập" : "Tạo tài khoản"}</button>
+        <button className="primary-button" disabled={loading}>{loading ? "Working…" : mode === "signin" ? "Sign in" : "Create account"}</button>
         <button type="button" className="text-button" onClick={() => setMode(mode === "signin" ? "signup" : "signin")}>
-          {mode === "signin" ? "Chưa có tài khoản? Đăng ký" : "Đã có tài khoản? Đăng nhập"}
+          {mode === "signin" ? "Don't have an account? Sign up" : "Already have an account? Sign in"}
         </button>
       </form>
     </main>

@@ -23,6 +23,14 @@ SUPPORTED_UPLOADS = {
 }
 
 
+def supports_upload(filename: str, content_type: str | None) -> bool:
+    supported_upload = SUPPORTED_UPLOADS.get(Path(filename).suffix.lower())
+    return supported_upload is not None and content_type in {
+        supported_upload[0],
+        "application/octet-stream",
+    }
+
+
 def get_minio_client() -> Minio:
     settings = get_settings()
     return Minio(
@@ -35,9 +43,8 @@ def get_minio_client() -> Minio:
 
 def store_upload(workspace_id: UUID, file: UploadFile, session: Session) -> Document:
     filename = file.filename or ""
-    extension = Path(filename).suffix.lower()
-    supported_upload = SUPPORTED_UPLOADS.get(extension)
-    if supported_upload is None or file.content_type != supported_upload[0]:
+    supported_upload = SUPPORTED_UPLOADS.get(Path(filename).suffix.lower())
+    if not supports_upload(filename, file.content_type) or supported_upload is None:
         raise ValueError("Unsupported file type")
 
     contents = file.file.read(get_settings().upload_max_bytes + 1)

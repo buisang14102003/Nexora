@@ -27,7 +27,7 @@ export function Sidebar({ workspaces, activeWorkspaceId, sessions, activeSession
     event.preventDefault();
     const name = workspaceName.trim();
     if (!name) {
-      setWorkspaceError("Nhập tên workspace.");
+      setWorkspaceError("Enter a workspace name.");
       return;
     }
     setCreating(true);
@@ -37,7 +37,7 @@ export function Sidebar({ workspaces, activeWorkspaceId, sessions, activeSession
       setWorkspaceName("");
       setWorkspaceFormOpen(false);
     } catch (reason) {
-      setWorkspaceError(reason instanceof Error ? reason.message : "Không thể tạo workspace.");
+      setWorkspaceError(reason instanceof Error ? reason.message : "We couldn't create the workspace.");
     } finally {
       setCreating(false);
     }
@@ -52,9 +52,9 @@ export function Sidebar({ workspaces, activeWorkspaceId, sessions, activeSession
       <div className="sidebar-section workspace-section">
         <div className="sidebar-heading"><span>Workspaces</span><button className="text-button compact" onClick={() => setWorkspaceFormOpen(true)}>Create</button></div>
         {workspaceFormOpen && <form className="inline-form" onSubmit={createWorkspace}>
-          <input aria-label="Tên workspace" placeholder="Tên workspace" value={workspaceName} onChange={(event) => setWorkspaceName(event.target.value)} autoFocus />
-          <button className="primary-button small" disabled={creating}>{creating ? "…" : "Tạo"}</button>
-          <button type="button" className="icon-button" aria-label="Hủy tạo workspace" onClick={() => setWorkspaceFormOpen(false)}>Cancel</button>
+          <input aria-label="Workspace name" placeholder="Workspace name" value={workspaceName} onChange={(event) => setWorkspaceName(event.target.value)} autoFocus />
+          <button className="primary-button small" disabled={creating}>{creating ? "…" : "Create"}</button>
+          <button type="button" className="icon-button" aria-label="Cancel workspace creation" onClick={() => setWorkspaceFormOpen(false)}>Cancel</button>
           {workspaceError && <p className="form-error">{workspaceError}</p>}
         </form>}
         <nav className="workspace-list" aria-label="Workspaces">
@@ -63,20 +63,20 @@ export function Sidebar({ workspaces, activeWorkspaceId, sessions, activeSession
       </div>
       <div className="sidebar-section sessions-section">
         <div className="sidebar-heading"><span>Recent</span></div>
-        <nav className="session-list" aria-label="Hội thoại">
+        <nav className="session-list" aria-label="Chats">
           {sessions.map((session) => <div className={session.id === activeSessionId ? "session-row active" : "session-row"} key={session.id}>
             <button className="session-title" onClick={() => void onSelectSession(session.id)}>{session.title}</button>
-            <button className="icon-button session-action" aria-label={`Đổi tên ${session.title}`} onClick={() => void onRenameSession(session)}>Rename</button>
-            <button className="icon-button session-action" aria-label={`Xóa ${session.title}`} onClick={() => void onDeleteSession(session)}>Delete</button>
+            <button className="icon-button session-action" aria-label={`Rename ${session.title}`} onClick={() => void onRenameSession(session)}>Rename</button>
+            <button className="icon-button session-action" aria-label={`Delete ${session.title}`} onClick={() => void onDeleteSession(session)}>Delete</button>
           </div>)}
         </nav>
       </div>
       <div className="profile-menu-wrap">
         {profileMenuOpen && <div className="profile-menu">
           <a href="http://127.0.0.1:3100" target="_blank" rel="noreferrer">Xem log Langfuse</a>
-          <button onClick={onLogout}>Đăng xuất</button>
+          <button onClick={onLogout}>Sign out</button>
         </div>}
-        <button className="account-button" aria-label="Mở menu tài khoản" aria-expanded={profileMenuOpen} onClick={() => setProfileMenuOpen((open) => !open)}><span>R</span><span>Account</span></button>
+        <button className="account-button" aria-label="Open account menu" aria-expanded={profileMenuOpen} onClick={() => setProfileMenuOpen((open) => !open)}><span>R</span><span>Account</span></button>
       </div>
     </aside>
   );

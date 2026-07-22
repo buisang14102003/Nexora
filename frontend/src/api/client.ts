@@ -57,9 +57,9 @@ type Fetcher = typeof fetch;
 async function errorMessage(response: Response): Promise<string> {
   try {
     const payload = (await response.json()) as { detail?: string };
-    return payload.detail || `Yêu cầu thất bại (${response.status}).`;
+    return payload.detail || `Request failed (${response.status}).`;
   } catch {
-    return `Yêu cầu thất bại (${response.status}).`;
+    return `Request failed (${response.status}).`;
   }
 }
 
@@ -133,7 +133,7 @@ export function createApiClient(token: string, fetcher: Fetcher = fetch) {
         body: JSON.stringify({ question, session_id: sessionId }),
       });
       if (!response.ok) throw new ApiError(response.status, await errorMessage(response));
-      if (!response.body) throw new ApiError(0, "Không nhận được luồng trả lời.");
+      if (!response.body) throw new ApiError(0, "No response stream was received.");
 
       const reader = response.body.getReader();
       const decoder = new TextDecoder();

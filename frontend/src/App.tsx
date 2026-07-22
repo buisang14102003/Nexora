@@ -18,9 +18,10 @@ export default function App() {
   const [streaming, setStreaming] = useState(false);
   const api = useMemo(() => (token ? createApiClient(token) : null), [token]);
   const activeWorkspace = workspaces.find((workspace) => workspace.id === workspaceId) ?? null;
+  const hasPendingDocuments = documents.some((document) => document.status === "queued" || document.status === "processing");
 
   function handleApiError(reason: unknown) {
-    const message = reason instanceof Error ? reason.message : "Không thể hoàn tất yêu cầu.";
+    const message = reason instanceof Error ? reason.message : "We couldn't complete that request.";
     setError(message);
     if (reason instanceof ApiError && reason.status === 401) logout();
   }
@@ -77,6 +78,12 @@ export default function App() {
       void loadDocuments(workspaceId);
     }
   }, [workspaceId]);
+
+  useEffect(() => {
+    if (!workspaceId || !hasPendingDocuments) return;
+    const timer = window.setTimeout(() => void loadDocuments(workspaceId), 2_000);
+    return () => window.clearTimeout(timer);
+  }, [workspaceId, hasPendingDocuments]);
 
   async function authenticate(email: string, password: string, mode: "signin" | "signup") {
     const nextToken = mode === "signin" ? await signIn(email, password) : await signUp(email, password);
@@ -137,7 +144,7 @@ export default function App() {
 
   async function renameSession(session: ChatSession) {
     if (!api || !workspaceId) return;
-    const title = window.prompt("Tên hội thoại", session.title)?.trim();
+    const title = window.prompt("Chat title", session.title)?.trim();
     if (!title || title === session.title) return;
     try {
       const renamed = await api.renameSession(workspaceId, session.id, title);
@@ -148,7 +155,7 @@ export default function App() {
   }
 
   async function deleteSession(session: ChatSession) {
-    if (!api || !workspaceId || !window.confirm(`Xóa “${session.title}”?`)) return;
+    if (!api || !workspaceId || !window.confirm(`Delete “${session.title}”?`)) return;
     try {
       await api.deleteSession(workspaceId, session.id);
       setSessions((current) => current.filter((item) => item.id !== session.id));
