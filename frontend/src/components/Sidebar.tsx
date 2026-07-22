@@ -45,13 +45,16 @@ export function Sidebar({ workspaces, activeWorkspaceId, sessions, activeSession
 
   return (
     <aside className="sidebar">
-      <div className="brand">LOCAL RAG</div>
-      <div className="sidebar-section">
-        <div className="sidebar-heading"><span>WORKSPACES</span><button className="text-button compact" onClick={() => setWorkspaceFormOpen(true)}>+ Tạo workspace</button></div>
+      <div className="sidebar-top">
+        <div className="brand">Local RAG</div>
+        <button className="new-chat-button" onClick={() => void onNewChat()} disabled={!activeWorkspaceId}>New chat</button>
+      </div>
+      <div className="sidebar-section workspace-section">
+        <div className="sidebar-heading"><span>Workspaces</span><button className="text-button compact" onClick={() => setWorkspaceFormOpen(true)}>Create</button></div>
         {workspaceFormOpen && <form className="inline-form" onSubmit={createWorkspace}>
           <input aria-label="Tên workspace" placeholder="Tên workspace" value={workspaceName} onChange={(event) => setWorkspaceName(event.target.value)} autoFocus />
           <button className="primary-button small" disabled={creating}>{creating ? "…" : "Tạo"}</button>
-          <button type="button" className="icon-button" aria-label="Hủy tạo workspace" onClick={() => setWorkspaceFormOpen(false)}>×</button>
+          <button type="button" className="icon-button" aria-label="Hủy tạo workspace" onClick={() => setWorkspaceFormOpen(false)}>Cancel</button>
           {workspaceError && <p className="form-error">{workspaceError}</p>}
         </form>}
         <nav className="workspace-list" aria-label="Workspaces">
@@ -59,12 +62,12 @@ export function Sidebar({ workspaces, activeWorkspaceId, sessions, activeSession
         </nav>
       </div>
       <div className="sidebar-section sessions-section">
-        <div className="sidebar-heading"><span>HỘI THOẠI</span><button className="text-button compact" onClick={() => void onNewChat()} disabled={!activeWorkspaceId}>+ Chat mới</button></div>
+        <div className="sidebar-heading"><span>Recent</span></div>
         <nav className="session-list" aria-label="Hội thoại">
           {sessions.map((session) => <div className={session.id === activeSessionId ? "session-row active" : "session-row"} key={session.id}>
             <button className="session-title" onClick={() => void onSelectSession(session.id)}>{session.title}</button>
-            <button className="icon-button session-action" aria-label={`Đổi tên ${session.title}`} onClick={() => void onRenameSession(session)}>✎</button>
-            <button className="icon-button session-action" aria-label={`Xóa ${session.title}`} onClick={() => void onDeleteSession(session)}>×</button>
+            <button className="icon-button session-action" aria-label={`Đổi tên ${session.title}`} onClick={() => void onRenameSession(session)}>Rename</button>
+            <button className="icon-button session-action" aria-label={`Xóa ${session.title}`} onClick={() => void onDeleteSession(session)}>Delete</button>
           </div>)}
         </nav>
       </div>
@@ -73,7 +76,7 @@ export function Sidebar({ workspaces, activeWorkspaceId, sessions, activeSession
           <a href="http://127.0.0.1:3100" target="_blank" rel="noreferrer">Xem log Langfuse</a>
           <button onClick={onLogout}>Đăng xuất</button>
         </div>}
-        <button className="avatar-button" aria-label="Mở menu tài khoản" aria-expanded={profileMenuOpen} onClick={() => setProfileMenuOpen((open) => !open)}>R</button>
+        <button className="account-button" aria-label="Mở menu tài khoản" aria-expanded={profileMenuOpen} onClick={() => setProfileMenuOpen((open) => !open)}><span>R</span><span>Account</span></button>
       </div>
     </aside>
   );
