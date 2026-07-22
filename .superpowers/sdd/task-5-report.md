@@ -65,3 +65,30 @@ git diff --check
 Exit 0 with no output.
 
 Review-fix commit: `fix: address workspace manager accessibility review`
+
+## Focus-restoration follow-up
+
+- When the recorded opener disappears after archive or empty-state creation, focus now falls back to the persistent header `New` button.
+- If that button is unavailable, restoration falls back to the selected status tab or the first enabled row control.
+
+Exact verification commands and results:
+
+```text
+cd frontend && npm run build
+```
+
+Exit 0. TypeScript and the Vite production build passed; 35 modules transformed and the build completed in 453ms.
+
+```text
+cd frontend && npm test -- src/workspaces/state.test.ts
+```
+
+Exit 0. One test file passed; all 3 tests passed.
+
+```text
+git diff --check
+```
+
+Exit 0 with no output.
+
+Follow-up commit: `fix: restore focus after workspace removal`

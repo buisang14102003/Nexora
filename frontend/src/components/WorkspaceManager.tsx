@@ -43,6 +43,8 @@ export function WorkspaceManager({ activeWorkspaces, archivedWorkspaces, loading
   const dialogRef = useRef<HTMLDialogElement>(null);
   const nameInputRef = useRef<HTMLInputElement>(null);
   const archiveButtonRef = useRef<HTMLButtonElement>(null);
+  const managerRef = useRef<HTMLElement>(null);
+  const newButtonRef = useRef<HTMLButtonElement>(null);
   const dialogOpenerRef = useRef<HTMLElement | null>(null);
   const dialogWasOpenRef = useRef(false);
 
@@ -90,7 +92,10 @@ export function WorkspaceManager({ activeWorkspaces, archivedWorkspaces, loading
     dialogWasOpenRef.current = false;
     const opener = dialogOpenerRef.current;
     dialogOpenerRef.current = null;
-    if (opener?.isConnected) opener.focus();
+    const fallback = newButtonRef.current?.isConnected
+      ? newButtonRef.current
+      : managerRef.current?.querySelector<HTMLElement>(".workspace-tabs button[aria-selected=\"true\"], button.workspace-row-main:not(:disabled), .workspace-menu-trigger:not(:disabled)");
+    (opener?.isConnected ? opener : fallback)?.focus();
   }, [dialog]);
 
   function closeDialog() {
@@ -272,7 +277,7 @@ export function WorkspaceManager({ activeWorkspaces, archivedWorkspaces, loading
 
   const screenError = error || (!dialog ? formError : "");
 
-  return <main className="workspace-manager">
+  return <main ref={managerRef} className="workspace-manager">
     <header className="workspace-manager-header">
       <h1>Workspaces</h1>
       <div className="workspace-manager-tools">
@@ -281,7 +286,7 @@ export function WorkspaceManager({ activeWorkspaces, archivedWorkspaces, loading
           <svg aria-hidden="true" viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6.5" /><path d="m15.5 15.5 4 4" /></svg>
           <input type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search workspaces" />
         </label>
-        <button className="workspace-new-button" onClick={(event) => openNameDialog("create", event.currentTarget)}>New</button>
+        <button ref={newButtonRef} className="workspace-new-button" onClick={(event) => openNameDialog("create", event.currentTarget)}>New</button>
       </div>
     </header>
     <div className="workspace-tabs" role="tablist" aria-label="Workspace status">
