@@ -4,6 +4,7 @@ import { ApiError, ChatMessage, ChatSession, createApiClient, signIn, signUp, Wo
 import { clearToken, readToken, saveToken } from "./auth/token";
 import { AuthView } from "./components/AuthView";
 import { ChatView } from "./components/ChatView";
+import { KnowledgeView } from "./components/KnowledgeView";
 import { Sidebar } from "./components/Sidebar";
 
 export default function App() {
@@ -203,6 +204,7 @@ export default function App() {
 
   return <div className="app-shell">
     <Sidebar workspaces={workspaces} activeWorkspaceId={workspaceId} sessions={sessions} activeSessionId={sessionId} onSelectWorkspace={setWorkspaceId} onCreateWorkspace={createWorkspace} onNewChat={newChat} onSelectSession={selectSession} onRenameSession={renameSession} onDeleteSession={deleteSession} onLogout={logout} />
+    <KnowledgeView workspaceName={activeWorkspace?.name ?? null} documents={documents} onUpload={uploadDocuments} />
     <ChatView workspaceName={activeWorkspace?.name ?? null} documents={documents} messages={messages} isStreaming={streaming} error={error} onUpload={uploadDocuments} onSend={send} />
   </div>;
 }

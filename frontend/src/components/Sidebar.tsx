@@ -1,4 +1,4 @@
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 
 import type { ChatSession, Workspace } from "../api/client";
 
@@ -22,6 +22,40 @@ export function Sidebar({ workspaces, activeWorkspaceId, sessions, activeSession
   const [workspaceError, setWorkspaceError] = useState("");
   const [creating, setCreating] = useState(false);
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
+  const [sessionMenuId, setSessionMenuId] = useState<string | null>(null);
+  const [theme, setTheme] = useState<"light" | "dark" | "system">((localStorage.getItem("theme") as "light" | "dark" | "system") || "system");
+
+  useEffect(() => {
+    const dark = theme === "dark" || (theme === "system" && window.matchMedia("(prefers-color-scheme: dark)").matches);
+    document.documentElement.dataset.theme = dark ? "dark" : "light";
+    localStorage.setItem("theme", theme);
+  }, [theme]);
+
+  useEffect(() => {
+    function closeMenus(event: PointerEvent) {
+      if (!(event.target instanceof Element)) return;
+      if (!event.target.closest(".profile-menu-wrap")) setProfileMenuOpen(false);
+      if (!event.target.closest(".session-menu-wrap")) setSessionMenuId(null);
+    }
+    function closeOnEscape(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        setProfileMenuOpen(false);
+        setSessionMenuId(null);
+      }
+    }
+    document.addEventListener("pointerdown", closeMenus);
+    document.addEventListener("keydown", closeOnEscape);
+    return () => {
+      document.removeEventListener("pointerdown", closeMenus);
+      document.removeEventListener("keydown", closeOnEscape);
+    };
+  }, []);
+
+  function closeWorkspaceDialog() {
+    setWorkspaceFormOpen(false);
+    setWorkspaceName("");
+    setWorkspaceError("");
+  }
 
   async function createWorkspace(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -34,8 +68,7 @@ export function Sidebar({ workspaces, activeWorkspaceId, sessions, activeSession
     setWorkspaceError("");
     try {
       await onCreateWorkspace(name);
-      setWorkspaceName("");
-      setWorkspaceFormOpen(false);
+      closeWorkspaceDialog();
     } catch (reason) {
       setWorkspaceError(reason instanceof Error ? reason.message : "We couldn't create the workspace.");
     } finally {
@@ -51,12 +84,6 @@ export function Sidebar({ workspaces, activeWorkspaceId, sessions, activeSession
       </div>
       <div className="sidebar-section workspace-section">
         <div className="sidebar-heading"><span>Workspaces</span><button className="text-button compact" onClick={() => setWorkspaceFormOpen(true)}>Create</button></div>
-        {workspaceFormOpen && <form className="inline-form" onSubmit={createWorkspace}>
-          <input aria-label="Workspace name" placeholder="Workspace name" value={workspaceName} onChange={(event) => setWorkspaceName(event.target.value)} autoFocus />
-          <button className="primary-button small" disabled={creating}>{creating ? "…" : "Create"}</button>
-          <button type="button" className="icon-button" aria-label="Cancel workspace creation" onClick={() => setWorkspaceFormOpen(false)}>Cancel</button>
-          {workspaceError && <p className="form-error">{workspaceError}</p>}
-        </form>}
         <nav className="workspace-list" aria-label="Workspaces">
           {workspaces.map((workspace) => <button key={workspace.id} className={workspace.id === activeWorkspaceId ? "nav-item active" : "nav-item"} onClick={() => onSelectWorkspace(workspace.id)}>{workspace.name}</button>)}
         </nav>
@@ -66,18 +93,36 @@ export function Sidebar({ workspaces, activeWorkspaceId, sessions, activeSession
         <nav className="session-list" aria-label="Chats">
           {sessions.map((session) => <div className={session.id === activeSessionId ? "session-row active" : "session-row"} key={session.id}>
             <button className="session-title" onClick={() => void onSelectSession(session.id)}>{session.title}</button>
-            <button className="icon-button session-action" aria-label={`Rename ${session.title}`} onClick={() => void onRenameSession(session)}>Rename</button>
-            <button className="icon-button session-action" aria-label={`Delete ${session.title}`} onClick={() => void onDeleteSession(session)}>Delete</button>
+            <div className="session-menu-wrap">
+              <button className="icon-button session-menu-trigger" aria-label={`Open actions for ${session.title}`} aria-expanded={sessionMenuId === session.id} onClick={() => setSessionMenuId((open) => open === session.id ? null : session.id)}>•••</button>
+              {sessionMenuId === session.id && <div className="session-menu" role="menu">
+                <button role="menuitem" onClick={() => { setSessionMenuId(null); void onRenameSession(session); }}>Rename</button>
+                <button className="danger" role="menuitem" onClick={() => { setSessionMenuId(null); void onDeleteSession(session); }}>Delete</button>
+              </div>}
+            </div>
           </div>)}
         </nav>
       </div>
       <div className="profile-menu-wrap">
         {profileMenuOpen && <div className="profile-menu">
-          <a href="http://127.0.0.1:3100" target="_blank" rel="noreferrer">Xem log Langfuse</a>
-          <button onClick={onLogout}>Sign out</button>
+          <div className="profile-summary"><span className="profile-avatar">R</span><span><strong>Local RAG</strong><small>Local workspace</small></span><b>›</b></div>
+          <div className="profile-divider" />
+          <div className="theme-control"><span>Theme</span><div>{(["light", "dark", "system"] as const).map((mode) => <button key={mode} className={theme === mode ? "theme-option active" : "theme-option"} onClick={() => setTheme(mode)}>{mode}</button>)}</div></div>
+          <a href="http://127.0.0.1:3100" target="_blank" rel="noreferrer">Observability</a>
+          <button onClick={onLogout}>Log out</button>
         </div>}
-        <button className="account-button" aria-label="Open account menu" aria-expanded={profileMenuOpen} onClick={() => setProfileMenuOpen((open) => !open)}><span>R</span><span>Account</span></button>
+        <button className="account-button" aria-label="Open settings menu" aria-expanded={profileMenuOpen} onClick={() => setProfileMenuOpen((open) => !open)}><span>R</span><span>Settings</span></button>
       </div>
+      {workspaceFormOpen && <dialog className="workspace-dialog" open onCancel={closeWorkspaceDialog} onClick={(event) => { if (event.target === event.currentTarget) closeWorkspaceDialog(); }}>
+        <form className="workspace-dialog-card" onSubmit={createWorkspace}>
+          <div className="dialog-heading"><h2>Create workspace</h2><button type="button" className="icon-button" aria-label="Close create workspace dialog" onClick={closeWorkspaceDialog}>×</button></div>
+          <label>Workspace name<input placeholder="e.g. Product research" value={workspaceName} onChange={(event) => setWorkspaceName(event.target.value)} autoFocus /></label>
+          <p className="dialog-note">Workspaces keep documents and chats separate.</p>
+          {workspaceError && <p className="form-error">{workspaceError}</p>}
+          <div className="dialog-actions"><button type="button" className="text-button" onClick={closeWorkspaceDialog}>Cancel</button><button className="primary-button" disabled={creating}>{creating ? "Creating…" : "Create workspace"}</button></div>
+          {workspaces.length > 0 && <div className="workspace-picker"><span>Or switch to an existing workspace</span>{workspaces.map((workspace) => <button type="button" key={workspace.id} onClick={() => { onSelectWorkspace(workspace.id); closeWorkspaceDialog(); }}>{workspace.name}</button>)}</div>}
+        </form>
+      </dialog>}
     </aside>
   );
 }
