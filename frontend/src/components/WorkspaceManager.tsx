@@ -1,4 +1,4 @@
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { FormEvent, SyntheticEvent, useEffect, useMemo, useRef, useState } from "react";
 
 import type { Workspace, WorkspaceStatus, WorkspaceUpdate } from "../api/client";
 import { filterWorkspaces } from "../workspaces/state";
@@ -40,6 +40,11 @@ export function WorkspaceManager({ activeWorkspaces, archivedWorkspaces, loading
   const [name, setName] = useState("");
   const [formError, setFormError] = useState("");
   const [pendingId, setPendingId] = useState<string | null>(null);
+  const dialogRef = useRef<HTMLDialogElement>(null);
+  const nameInputRef = useRef<HTMLInputElement>(null);
+  const archiveButtonRef = useRef<HTMLButtonElement>(null);
+  const dialogOpenerRef = useRef<HTMLElement | null>(null);
+  const dialogWasOpenRef = useRef(false);
 
   const visibleWorkspaces = useMemo(
     () => filterWorkspaces(status === "active" ? activeWorkspaces : archivedWorkspaces, query),
@@ -61,6 +66,33 @@ export function WorkspaceManager({ activeWorkspaces, archivedWorkspaces, loading
     };
   }, []);
 
+  useEffect(() => {
+    if (!dialog) return;
+    const dialogElement = dialogRef.current;
+    if (!dialogElement) return;
+    if (!dialogElement.open) dialogElement.showModal();
+    const frame = requestAnimationFrame(() => {
+      if (dialog.type === "archive") archiveButtonRef.current?.focus();
+      else nameInputRef.current?.focus();
+    });
+    return () => {
+      cancelAnimationFrame(frame);
+      if (dialogElement.open) dialogElement.close();
+    };
+  }, [dialog]);
+
+  useEffect(() => {
+    if (dialog) {
+      dialogWasOpenRef.current = true;
+      return;
+    }
+    if (!dialogWasOpenRef.current) return;
+    dialogWasOpenRef.current = false;
+    const opener = dialogOpenerRef.current;
+    dialogOpenerRef.current = null;
+    if (opener?.isConnected) opener.focus();
+  }, [dialog]);
+
   function closeDialog() {
     if (pendingId) return;
     setDialog(null);
@@ -68,12 +100,32 @@ export function WorkspaceManager({ activeWorkspaces, archivedWorkspaces, loading
     setFormError("");
   }
 
-  function openNameDialog(type: "create" | "rename", workspace?: Workspace) {
+  function rememberDialogOpener(opener: HTMLElement) {
+    dialogOpenerRef.current = opener.closest(".workspace-menu-wrap")?.querySelector<HTMLElement>(".workspace-menu-trigger") ?? opener;
+  }
+
+  function openNameDialog(type: "create" | "rename", opener: HTMLElement, workspace?: Workspace) {
+    rememberDialogOpener(opener);
     setMenuId(null);
     setName(workspace?.name ?? "");
     setFormError("");
     if (type === "create") setDialog({ type });
     else if (workspace) setDialog({ type, workspace });
+  }
+
+  function openArchiveDialog(workspace: Workspace, opener: HTMLElement) {
+    rememberDialogOpener(opener);
+    setMenuId(null);
+    setFormError("");
+    setDialog({ type: "archive", workspace });
+  }
+
+  function cancelDialog(event: SyntheticEvent<HTMLDialogElement>) {
+    if (pendingId) {
+      event.preventDefault();
+      return;
+    }
+    closeDialog();
   }
 
   async function selectArchivedTab() {
@@ -162,8 +214,8 @@ export function WorkspaceManager({ activeWorkspaces, archivedWorkspaces, loading
             : <>
               <button role="menuitem" onClick={() => { setMenuId(null); onOpen(workspace.id); }}>Open</button>
               <button role="menuitem" onClick={() => void runRowAction(workspace, "pin")}>{workspace.is_pinned ? "Unpin workspace" : "Pin workspace"}</button>
-              <button role="menuitem" onClick={() => openNameDialog("rename", workspace)}>Rename</button>
-              <button className="danger" role="menuitem" onClick={() => { setMenuId(null); setFormError(""); setDialog({ type: "archive", workspace }); }}>Archive</button>
+              <button role="menuitem" onClick={(event) => openNameDialog("rename", event.currentTarget, workspace)}>Rename</button>
+              <button className="danger" role="menuitem" onClick={(event) => openArchiveDialog(workspace, event.currentTarget)}>Archive</button>
             </>}
         </div>}
       </div>
@@ -188,7 +240,7 @@ export function WorkspaceManager({ activeWorkspaces, archivedWorkspaces, loading
       <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M3.75 6.75h6l1.5 2.25h9v8.25a1.5 1.5 0 0 1-1.5 1.5h-15a1.5 1.5 0 0 1-1.5-1.5v-9a1.5 1.5 0 0 1 1.5-1.5Z" /></svg>
       <h2>Create your first workspace</h2>
       <p>Workspaces keep documents and chats separate.</p>
-      <button className="workspace-empty-action" onClick={() => openNameDialog("create")}>New workspace</button>
+      <button className="workspace-empty-action" onClick={(event) => openNameDialog("create", event.currentTarget)}>New workspace</button>
     </div>;
   }
 
@@ -196,21 +248,21 @@ export function WorkspaceManager({ activeWorkspaces, archivedWorkspaces, loading
     if (!dialog) return null;
     if (dialog.type === "archive") {
       const pending = pendingId === dialog.workspace.id;
-      return <dialog className="workspace-dialog" open aria-labelledby="archive-workspace-title" onCancel={closeDialog} onClick={(event) => { if (event.target === event.currentTarget) closeDialog(); }}>
+      return <dialog ref={dialogRef} className="workspace-dialog" aria-labelledby="archive-workspace-title" onCancel={cancelDialog} onClick={(event) => { if (event.target === event.currentTarget) closeDialog(); }}>
         <div className="workspace-dialog-card workspace-confirmation">
           <div className="dialog-heading"><h2 id="archive-workspace-title">Archive workspace</h2><button type="button" className="icon-button" aria-label="Close archive workspace dialog" disabled={pending} onClick={closeDialog}>×</button></div>
           <p><strong>“{dialog.workspace.name}”</strong> and its documents and chats remain saved, but they will be unavailable until you restore the workspace.</p>
           {formError && <p className="form-error" role="alert">{formError}</p>}
-          <div className="dialog-actions"><button type="button" className="text-button" disabled={pending} onClick={closeDialog}>Cancel</button><button type="button" className="workspace-danger-button" disabled={pending} onClick={() => void confirmArchive()}>{pending ? "Archiving…" : "Archive"}</button></div>
+          <div className="dialog-actions"><button type="button" className="text-button" disabled={pending} onClick={closeDialog}>Cancel</button><button ref={archiveButtonRef} type="button" className="workspace-danger-button" disabled={pending} onClick={() => void confirmArchive()}>{pending ? "Archiving…" : "Archive"}</button></div>
         </div>
       </dialog>;
     }
     const creating = dialog.type === "create";
     const pending = pendingId === (creating ? "create" : dialog.workspace.id);
-    return <dialog className="workspace-dialog" open aria-labelledby="workspace-name-dialog-title" onCancel={closeDialog} onClick={(event) => { if (event.target === event.currentTarget) closeDialog(); }}>
+    return <dialog ref={dialogRef} className="workspace-dialog" aria-labelledby="workspace-name-dialog-title" onCancel={cancelDialog} onClick={(event) => { if (event.target === event.currentTarget) closeDialog(); }}>
       <form className="workspace-dialog-card" onSubmit={submitName}>
         <div className="dialog-heading"><h2 id="workspace-name-dialog-title">{creating ? "Create workspace" : "Rename workspace"}</h2><button type="button" className="icon-button" aria-label={`Close ${creating ? "create" : "rename"} workspace dialog`} disabled={pending} onClick={closeDialog}>×</button></div>
-        <label>Workspace name<input value={name} onChange={(event) => setName(event.target.value)} placeholder="e.g. Product research" autoFocus disabled={pending} /></label>
+        <label>Workspace name<input ref={nameInputRef} value={name} onChange={(event) => setName(event.target.value)} placeholder="e.g. Product research" autoFocus disabled={pending} /></label>
         <p className="dialog-note">Workspaces keep documents and chats separate.</p>
         {formError && <p className="form-error" role="alert">{formError}</p>}
         <div className="dialog-actions"><button type="button" className="text-button" disabled={pending} onClick={closeDialog}>Cancel</button><button className="primary-button" disabled={pending}>{pending ? (creating ? "Creating…" : "Saving…") : (creating ? "Create workspace" : "Save name")}</button></div>
@@ -218,7 +270,7 @@ export function WorkspaceManager({ activeWorkspaces, archivedWorkspaces, loading
     </dialog>;
   }
 
-  const screenError = (status === "archived" ? error : "") || (!dialog ? formError : "");
+  const screenError = error || (!dialog ? formError : "");
 
   return <main className="workspace-manager">
     <header className="workspace-manager-header">
@@ -229,7 +281,7 @@ export function WorkspaceManager({ activeWorkspaces, archivedWorkspaces, loading
           <svg aria-hidden="true" viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6.5" /><path d="m15.5 15.5 4 4" /></svg>
           <input type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search workspaces" />
         </label>
-        <button className="workspace-new-button" onClick={() => openNameDialog("create")}>New</button>
+        <button className="workspace-new-button" onClick={(event) => openNameDialog("create", event.currentTarget)}>New</button>
       </div>
     </header>
     <div className="workspace-tabs" role="tablist" aria-label="Workspace status">
@@ -240,7 +292,7 @@ export function WorkspaceManager({ activeWorkspaces, archivedWorkspaces, loading
     <section className="workspace-table" aria-live="polite" aria-busy={loading}>
       <div className="workspace-table-heading"><span>Name</span><span>Modified</span><span>Actions</span></div>
       {!loading && visibleWorkspaces.map(renderWorkspaceRow)}
-      {(loading || visibleWorkspaces.length === 0) && renderEmptyState()}
+      {!error && (loading || visibleWorkspaces.length === 0) && renderEmptyState()}
     </section>
     {renderDialog()}
   </main>;

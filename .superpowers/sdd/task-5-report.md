@@ -36,3 +36,32 @@ Implemented the standalone workspace management screen without integrating `App.
 - The component is deliberately not mounted until Task 6, so this task cannot perform a meaningful browser interaction or visual check. The production build includes the standalone file in TypeScript compilation.
 - No component DOM test harness is installed. The relevant existing pure filter tests were run; no test dependency was added.
 - `.superpowers/sdd/task-1-report.md` was already modified before Task 5 and is intentionally excluded from this commit.
+
+## Review fixes
+
+- Supplied workspace errors now render on both Active and Archived, and suppress misleading empty-state copy when no rows loaded.
+- Create, rename, and archive now use native `showModal()` behavior for focus containment and Escape handling.
+- Name dialogs explicitly focus the name input; archive confirmation explicitly focuses the Archive button.
+- Dialog close restores focus to the button that opened it, or to the persistent row menu trigger when the opener was a menu item.
+
+Exact verification commands and results:
+
+```text
+cd frontend && npm run build
+```
+
+Exit 0. TypeScript and the Vite production build passed; 35 modules transformed and the build completed in 463ms.
+
+```text
+cd frontend && npm test -- src/workspaces/state.test.ts
+```
+
+Exit 0. One test file passed; all 3 tests passed.
+
+```text
+git diff --check
+```
+
+Exit 0 with no output.
+
+Review-fix commit: `fix: address workspace manager accessibility review`
