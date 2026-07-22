@@ -1,3 +1,5 @@
+// @ts-expect-error Node types are intentionally absent from the browser project.
+import { readFileSync } from "node:fs";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 
@@ -40,6 +42,13 @@ const managerCallbacks = {
 };
 
 describe("workspace component structure", () => {
+  it("uses pathname routing instead of local content mode", () => {
+    const source = readFileSync(new URL("../App.tsx", import.meta.url), "utf8");
+    expect(source).toContain("useAppRoute()");
+    expect(source).toContain('route === "/workspaces"');
+    expect(source).not.toContain("contentMode");
+  });
+
   it("renders only active pinned workspaces in the sidebar", () => {
     const html = renderToStaticMarkup(<Sidebar
       workspaces={[activePinned, activeUnpinned, archivedPinned]}

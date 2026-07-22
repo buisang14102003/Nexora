@@ -7,16 +7,15 @@ import { ChatView } from "./components/ChatView";
 import { KnowledgeView } from "./components/KnowledgeView";
 import { Sidebar } from "./components/Sidebar";
 import { WorkspaceManager } from "./components/WorkspaceManager";
+import { useAppRoute } from "./routing/app-route";
 import { nextWorkspaceAfterArchive, orderActiveWorkspaces } from "./workspaces/state";
 
-type ContentMode = "workspace" | "manager";
-
 export default function App() {
+  const [route, navigate] = useAppRoute();
   const [token, setToken] = useState(readToken);
   const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
   const [archivedWorkspaces, setArchivedWorkspaces] = useState<Workspace[]>([]);
   const [workspaceId, setWorkspaceId] = useState<string | null>(null);
-  const [contentMode, setContentMode] = useState<ContentMode>("workspace");
   const [workspaceLoading, setWorkspaceLoading] = useState(false);
   const [workspaceError, setWorkspaceError] = useState("");
   const [sessions, setSessions] = useState<ChatSession[]>([]);
@@ -28,6 +27,7 @@ export default function App() {
   const api = useMemo(() => (token ? createApiClient(token) : null), [token]);
   const activeWorkspace = workspaces.find((workspace) => workspace.id === workspaceId) ?? null;
   const hasPendingDocuments = documents.some((document) => document.status === "queued" || document.status === "processing");
+  const managerActive = route === "/workspaces";
 
   function handleApiError(reason: unknown) {
     const message = reason instanceof Error ? reason.message : "We couldn't complete that request.";
@@ -107,7 +107,6 @@ export default function App() {
     setWorkspaces([]);
     setArchivedWorkspaces([]);
     setWorkspaceId(null);
-    setContentMode("workspace");
     setWorkspaceLoading(false);
     setWorkspaceError("");
     setError("");
@@ -118,7 +117,7 @@ export default function App() {
     const workspace = await api.createWorkspace(name);
     setWorkspaces((current) => orderActiveWorkspaces([workspace, ...current]));
     setWorkspaceId(workspace.id);
-    setContentMode("workspace");
+    navigate("/chat");
   }
 
   async function loadArchivedWorkspaces() {
@@ -136,7 +135,7 @@ export default function App() {
 
   function openWorkspace(nextWorkspaceId: string) {
     setWorkspaceId(nextWorkspaceId);
-    setContentMode("workspace");
+    navigate("/chat");
   }
 
   async function updateWorkspace(targetWorkspaceId: string, update: WorkspaceUpdate) {
@@ -161,7 +160,6 @@ export default function App() {
         setDocuments([]);
       }
     }
-    setContentMode("manager");
   }
 
   async function restoreWorkspace(targetWorkspaceId: string) {
@@ -268,17 +266,17 @@ export default function App() {
 
   if (!token) return <AuthView onSubmit={authenticate} />;
 
-  return <div className={contentMode === "manager" ? "app-shell manager-mode" : "app-shell"}>
+  return <div className={route === "/workspaces" ? "app-shell manager-mode" : "app-shell"}>
     <Sidebar
       workspaces={workspaces}
       activeWorkspaceId={workspaceId}
-      managerActive={contentMode === "manager"}
+      managerActive={managerActive}
       sessions={sessions}
       activeSessionId={sessionId}
-      onOpenManager={() => setContentMode("manager")}
+      onOpenManager={() => navigate("/workspaces")}
       onSelectWorkspace={openWorkspace}
       onNewChat={async () => {
-        setContentMode("workspace");
+        navigate("/chat");
         return newChat();
       }}
       onSelectSession={selectSession}
@@ -286,7 +284,7 @@ export default function App() {
       onDeleteSession={deleteSession}
       onLogout={logout}
     />
-    {contentMode === "manager" ? <WorkspaceManager
+    {route === "/workspaces" ? <WorkspaceManager
       activeWorkspaces={workspaces}
       archivedWorkspaces={archivedWorkspaces}
       loading={workspaceLoading}
