@@ -197,6 +197,7 @@ export default function App() {
 
   async function selectSession(nextSessionId: string) {
     if (!api || !workspaceId) return;
+    navigate("/chat");
     try {
       setError("");
       const detail = await api.getSession(workspaceId, nextSessionId);

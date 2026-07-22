@@ -49,6 +49,12 @@ describe("workspace component structure", () => {
     expect(source).not.toContain("contentMode");
   });
 
+  it("returns to chat when a recent session is selected", () => {
+    const source = readFileSync(new URL("../App.tsx", import.meta.url), "utf8");
+    const selectSession = source.match(/async function selectSession[\s\S]*?(?=\n  async function renameSession)/)?.[0];
+    expect(selectSession).toContain('navigate("/chat")');
+  });
+
   it("renders only active pinned workspaces in the sidebar", () => {
     const html = renderToStaticMarkup(<Sidebar
       workspaces={[activePinned, activeUnpinned, archivedPinned]}
