@@ -1,16 +1,24 @@
 import { useEffect, useMemo, useState } from "react";
 
-import { ApiError, ChatMessage, ChatSession, createApiClient, signIn, signUp, Workspace, WorkspaceDocument } from "./api/client";
+import { ApiError, ChatMessage, ChatSession, createApiClient, signIn, signUp, Workspace, WorkspaceDocument, WorkspaceUpdate } from "./api/client";
 import { clearToken, readToken, saveToken } from "./auth/token";
 import { AuthView } from "./components/AuthView";
 import { ChatView } from "./components/ChatView";
 import { KnowledgeView } from "./components/KnowledgeView";
 import { Sidebar } from "./components/Sidebar";
+import { WorkspaceManager } from "./components/WorkspaceManager";
+import { nextWorkspaceAfterArchive, pinnedWorkspaces } from "./workspaces/state";
+
+type ContentMode = "workspace" | "manager";
 
 export default function App() {
   const [token, setToken] = useState(readToken);
   const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
+  const [archivedWorkspaces, setArchivedWorkspaces] = useState<Workspace[]>([]);
   const [workspaceId, setWorkspaceId] = useState<string | null>(null);
+  const [contentMode, setContentMode] = useState<ContentMode>("workspace");
+  const [workspaceLoading, setWorkspaceLoading] = useState(false);
+  const [workspaceError, setWorkspaceError] = useState("");
   const [sessions, setSessions] = useState<ChatSession[]>([]);
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -18,6 +26,7 @@ export default function App() {
   const [error, setError] = useState("");
   const [streaming, setStreaming] = useState(false);
   const api = useMemo(() => (token ? createApiClient(token) : null), [token]);
+  const pinned = useMemo(() => pinnedWorkspaces(workspaces), [workspaces]);
   const activeWorkspace = workspaces.find((workspace) => workspace.id === workspaceId) ?? null;
   const hasPendingDocuments = documents.some((document) => document.status === "queued" || document.status === "processing");
 
@@ -95,6 +104,12 @@ export default function App() {
   function logout() {
     clearToken();
     setToken(null);
+    setWorkspaces([]);
+    setArchivedWorkspaces([]);
+    setWorkspaceId(null);
+    setContentMode("workspace");
+    setWorkspaceLoading(false);
+    setWorkspaceError("");
     setError("");
   }
 
@@ -103,6 +118,57 @@ export default function App() {
     const workspace = await api.createWorkspace(name);
     setWorkspaces((current) => [workspace, ...current]);
     setWorkspaceId(workspace.id);
+    setContentMode("workspace");
+  }
+
+  async function loadArchivedWorkspaces() {
+    if (!api) return;
+    setWorkspaceLoading(true);
+    setWorkspaceError("");
+    try {
+      setArchivedWorkspaces(await api.listWorkspaces("archived"));
+    } catch (reason) {
+      setWorkspaceError(reason instanceof Error ? reason.message : "We couldn't load archived workspaces.");
+    } finally {
+      setWorkspaceLoading(false);
+    }
+  }
+
+  function openWorkspace(nextWorkspaceId: string) {
+    setWorkspaceId(nextWorkspaceId);
+    setContentMode("workspace");
+  }
+
+  async function updateWorkspace(targetWorkspaceId: string, update: WorkspaceUpdate) {
+    if (!api) return;
+    const updated = await api.updateWorkspace(targetWorkspaceId, update);
+    setWorkspaces((current) => current.map((workspace) => workspace.id === updated.id ? updated : workspace));
+  }
+
+  async function archiveWorkspace(targetWorkspaceId: string) {
+    if (!api) return;
+    const archived = await api.archiveWorkspace(targetWorkspaceId);
+    const remaining = workspaces.filter((workspace) => workspace.id !== targetWorkspaceId);
+    const nextWorkspaceId = nextWorkspaceAfterArchive(workspaces, workspaceId, targetWorkspaceId);
+    setWorkspaces(remaining);
+    setArchivedWorkspaces((current) => [archived, ...current.filter((workspace) => workspace.id !== archived.id)]);
+    if (targetWorkspaceId === workspaceId) {
+      setWorkspaceId(nextWorkspaceId);
+      if (!nextWorkspaceId) {
+        setSessions([]);
+        setSessionId(null);
+        setMessages([]);
+        setDocuments([]);
+      }
+    }
+    setContentMode("manager");
+  }
+
+  async function restoreWorkspace(targetWorkspaceId: string) {
+    if (!api) return;
+    const restored = await api.restoreWorkspace(targetWorkspaceId);
+    setArchivedWorkspaces((current) => current.filter((workspace) => workspace.id !== targetWorkspaceId));
+    setWorkspaces((current) => [restored, ...current]);
   }
 
   async function uploadDocuments(files: FileList) {
@@ -202,9 +268,38 @@ export default function App() {
 
   if (!token) return <AuthView onSubmit={authenticate} />;
 
-  return <div className="app-shell">
-    <Sidebar workspaces={workspaces} activeWorkspaceId={workspaceId} sessions={sessions} activeSessionId={sessionId} onSelectWorkspace={setWorkspaceId} onCreateWorkspace={createWorkspace} onNewChat={newChat} onSelectSession={selectSession} onRenameSession={renameSession} onDeleteSession={deleteSession} onLogout={logout} />
-    <KnowledgeView workspaceName={activeWorkspace?.name ?? null} documents={documents} onUpload={uploadDocuments} />
-    <ChatView workspaceName={activeWorkspace?.name ?? null} documents={documents} messages={messages} isStreaming={streaming} error={error} onUpload={uploadDocuments} onSend={send} />
+  return <div className={contentMode === "manager" ? "app-shell manager-mode" : "app-shell"}>
+    <Sidebar
+      pinned={pinned}
+      activeWorkspaceId={workspaceId}
+      managerActive={contentMode === "manager"}
+      sessions={sessions}
+      activeSessionId={sessionId}
+      onOpenManager={() => setContentMode("manager")}
+      onSelectWorkspace={openWorkspace}
+      onNewChat={async () => {
+        setContentMode("workspace");
+        return newChat();
+      }}
+      onSelectSession={selectSession}
+      onRenameSession={renameSession}
+      onDeleteSession={deleteSession}
+      onLogout={logout}
+    />
+    {contentMode === "manager" ? <WorkspaceManager
+      activeWorkspaces={workspaces}
+      archivedWorkspaces={archivedWorkspaces}
+      loading={workspaceLoading}
+      error={workspaceError}
+      onLoadArchived={loadArchivedWorkspaces}
+      onCreate={createWorkspace}
+      onOpen={openWorkspace}
+      onUpdate={updateWorkspace}
+      onArchive={archiveWorkspace}
+      onRestore={restoreWorkspace}
+    /> : <>
+      <KnowledgeView workspaceName={activeWorkspace?.name ?? null} documents={documents} onUpload={uploadDocuments} />
+      <ChatView workspaceName={activeWorkspace?.name ?? null} documents={documents} messages={messages} isStreaming={streaming} error={error} onUpload={uploadDocuments} onSend={send} />
+    </>}
   </div>;
 }

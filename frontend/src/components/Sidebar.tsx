@@ -1,14 +1,15 @@
-import { FormEvent, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 
 import type { ChatSession, Workspace } from "../api/client";
 
 type Props = {
-  workspaces: Workspace[];
+  pinned: Workspace[];
   activeWorkspaceId: string | null;
+  managerActive: boolean;
   sessions: ChatSession[];
   activeSessionId: string | null;
+  onOpenManager: () => void;
   onSelectWorkspace: (workspaceId: string) => void;
-  onCreateWorkspace: (name: string) => Promise<void>;
   onNewChat: () => Promise<unknown>;
   onSelectSession: (sessionId: string) => Promise<void>;
   onRenameSession: (session: ChatSession) => Promise<void>;
@@ -16,11 +17,7 @@ type Props = {
   onLogout: () => void;
 };
 
-export function Sidebar({ workspaces, activeWorkspaceId, sessions, activeSessionId, onSelectWorkspace, onCreateWorkspace, onNewChat, onSelectSession, onRenameSession, onDeleteSession, onLogout }: Props) {
-  const [workspaceFormOpen, setWorkspaceFormOpen] = useState(false);
-  const [workspaceName, setWorkspaceName] = useState("");
-  const [workspaceError, setWorkspaceError] = useState("");
-  const [creating, setCreating] = useState(false);
+export function Sidebar({ pinned, activeWorkspaceId, managerActive, sessions, activeSessionId, onOpenManager, onSelectWorkspace, onNewChat, onSelectSession, onRenameSession, onDeleteSession, onLogout }: Props) {
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
   const [sessionMenuId, setSessionMenuId] = useState<string | null>(null);
   const [theme, setTheme] = useState<"light" | "dark" | "system">((localStorage.getItem("theme") as "light" | "dark" | "system") || "system");
@@ -51,43 +48,22 @@ export function Sidebar({ workspaces, activeWorkspaceId, sessions, activeSession
     };
   }, []);
 
-  function closeWorkspaceDialog() {
-    setWorkspaceFormOpen(false);
-    setWorkspaceName("");
-    setWorkspaceError("");
-  }
-
-  async function createWorkspace(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    const name = workspaceName.trim();
-    if (!name) {
-      setWorkspaceError("Enter a workspace name.");
-      return;
-    }
-    setCreating(true);
-    setWorkspaceError("");
-    try {
-      await onCreateWorkspace(name);
-      closeWorkspaceDialog();
-    } catch (reason) {
-      setWorkspaceError(reason instanceof Error ? reason.message : "We couldn't create the workspace.");
-    } finally {
-      setCreating(false);
-    }
-  }
-
   return (
     <aside className="sidebar">
       <div className="sidebar-top">
         <div className="brand">Local RAG</div>
         <button className="new-chat-button" onClick={() => void onNewChat()} disabled={!activeWorkspaceId}>New chat</button>
       </div>
-      <div className="sidebar-section workspace-section">
-        <div className="sidebar-heading"><span>Workspaces</span><button className="text-button compact" onClick={() => setWorkspaceFormOpen(true)}>Create</button></div>
-        <nav className="workspace-list" aria-label="Workspaces">
-          {workspaces.map((workspace) => <button key={workspace.id} className={workspace.id === activeWorkspaceId ? "nav-item active" : "nav-item"} onClick={() => onSelectWorkspace(workspace.id)}>{workspace.name}</button>)}
+      <button className={managerActive ? "workspace-manager-link active" : "workspace-manager-link"} onClick={onOpenManager}>
+        <span className="workspace-manager-link-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3.75 6.75h6l1.5 2.25h9v8.25a1.5 1.5 0 0 1-1.5 1.5h-15a1.5 1.5 0 0 1-1.5-1.5v-9a1.5 1.5 0 0 1 1.5-1.5Z" /></svg></span>
+        <span>Workspaces</span>
+      </button>
+      {pinned.length > 0 && <div className="sidebar-section workspace-section">
+        <div className="sidebar-heading"><span>Pinned</span></div>
+        <nav className="workspace-list" aria-label="Pinned workspaces">
+          {pinned.map((workspace) => <button key={workspace.id} className={!managerActive && workspace.id === activeWorkspaceId ? "nav-item active" : "nav-item"} onClick={() => onSelectWorkspace(workspace.id)}>{workspace.name}</button>)}
         </nav>
-      </div>
+      </div>}
       <div className="sidebar-section sessions-section">
         <div className="sidebar-heading"><span>Recent</span></div>
         <nav className="session-list" aria-label="Chats">
@@ -113,16 +89,6 @@ export function Sidebar({ workspaces, activeWorkspaceId, sessions, activeSession
         </div>}
         <button className="account-button" aria-label="Open settings menu" aria-expanded={profileMenuOpen} onClick={() => setProfileMenuOpen((open) => !open)}><span>R</span><span>Settings</span></button>
       </div>
-      {workspaceFormOpen && <dialog className="workspace-dialog" open onCancel={closeWorkspaceDialog} onClick={(event) => { if (event.target === event.currentTarget) closeWorkspaceDialog(); }}>
-        <form className="workspace-dialog-card" onSubmit={createWorkspace}>
-          <div className="dialog-heading"><h2>Create workspace</h2><button type="button" className="icon-button" aria-label="Close create workspace dialog" onClick={closeWorkspaceDialog}>×</button></div>
-          <label>Workspace name<input placeholder="e.g. Product research" value={workspaceName} onChange={(event) => setWorkspaceName(event.target.value)} autoFocus /></label>
-          <p className="dialog-note">Workspaces keep documents and chats separate.</p>
-          {workspaceError && <p className="form-error">{workspaceError}</p>}
-          <div className="dialog-actions"><button type="button" className="text-button" onClick={closeWorkspaceDialog}>Cancel</button><button className="primary-button" disabled={creating}>{creating ? "Creating…" : "Create workspace"}</button></div>
-          {workspaces.length > 0 && <div className="workspace-picker"><span>Or switch to an existing workspace</span>{workspaces.map((workspace) => <button type="button" key={workspace.id} onClick={() => { onSelectWorkspace(workspace.id); closeWorkspaceDialog(); }}>{workspace.name}</button>)}</div>}
-        </form>
-      </dialog>}
     </aside>
   );
 }
